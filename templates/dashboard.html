@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block title %}人資總務管理 - 主選單{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header text-center">
+                <h2 class="fw-bold mb-0">
+                    <i class="fas fa-users-cog me-2"></i>人資總務管理系統
+                </h2>
+                <p class="mb-0 mt-2 opacity-75">請選擇您要進入的作業區</p>
+            </div>
+            <div class="card-body py-5">
+                <div class="row g-4">
+                    <!-- 總務事務用品作業區（展開子選單） -->
+                    <div class="col-md-6">
+                        <div class="dropdown w-100">
+                            <button class="btn btn-primary btn-lg w-100 py-4 fs-4 dropdown-toggle" type="button" id="generalDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-archive me-2"></i>總務事務用品作業區
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="generalDropdown">
+                                <li><a class="dropdown-item fs-5 py-3" href="{{ url_for('purchase_request_new') }}">1. 總務事務用品請購單</a></li>
+                                {% if session['role'] != '一般人員' %}
+                                <li>
+                                    <div class="dropdown-submenu">
+                                        <a class="dropdown-item fs-5 py-3 dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            2. 總務事務用品請購單簽核
+                                        </a>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item fs-6 py-2 d-flex justify-content-between align-items-center" href="{{ url_for('purchase_approval', dept='manufacturing') }}">
+                                                    製造部門請購單簽核
+                                                    {% if manufacturing_pending_count > 0 %}
+                                                    <span class="badge bg-danger ms-2 manufacturing-pending-count">{{ manufacturing_pending_count }}</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger ms-2 manufacturing-pending-count" style="display: none;">0</span>
+                                                    {% endif %}
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item fs-6 py-2 d-flex justify-content-between align-items-center" href="{{ url_for('purchase_approval', dept='rd') }}">
+                                                    研發部門請購單簽核
+                                                    {% if rd_pending_count > 0 %}
+                                                    <span class="badge bg-danger ms-2 rd-pending-count">{{ rd_pending_count }}</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger ms-2 rd-pending-count" style="display: none;">0</span>
+                                                    {% endif %}
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                {% endif %}
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item fs-5 py-3 dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        3. 請購單彙總為採購清單
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="{{ url_for('purchase_summary') }}">1. 彙總請購單</a></li>
+                                        <li><a class="dropdown-item" href="{{ url_for('receipt_management') }}">2. 驗收單作業</a></li>
+                                    </ul>
+                                </li>
+                                <li><a class="dropdown-item fs-5 py-3" href="{{ url_for('purchase_search') }}">4. 搜尋</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- 其他三大區 -->
+                    <div class="col-md-6">
+                        <div class="dropdown w-100">
+                            <button class="btn btn-success btn-lg w-100 py-4 fs-4 dropdown-toggle" type="button" id="attendanceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-calendar-check me-2"></i>每日出勤作業區
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="attendanceDropdown">
+                                <li><a class="dropdown-item fs-5 py-3" href="{{ url_for('attendance_check') }}">每日出勤核對</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="#" class="btn btn-warning btn-lg w-100 py-4 fs-4">
+                            <i class="fas fa-coins me-2"></i>每月薪資結算作業區
+                        </a>
+                    </div>
+                    {% if session['role'] != '一般人員' and session['role'] != '主管' %}
+                    <div class="col-md-6">
+                        <div class="dropdown w-100">
+                            <button class="btn btn-secondary btn-lg w-100 py-4 fs-4 dropdown-toggle" type="button" id="maintainDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-tools me-2"></i>系統維護區
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="maintainDropdown">
+                                <li>
+                                    <a class="dropdown-item fs-5 py-3" href="{{ url_for('user_management') }}">
+                                        <i class="fas fa-users-cog me-2"></i>人員檔案管理
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item fs-5 py-3" href="{{ url_for('system_log') }}">
+                                        <i class="fas fa-clipboard-list me-2"></i>系統日誌
+                                    </a>
+                                </li>
+                                <!-- 可加其他維護功能 -->
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 建立 BroadcastChannel 用於跨頁面通信
+let broadcastChannel;
+try {
+    broadcastChannel = new BroadcastChannel('pending_count_updates');
+    console.log('BroadcastChannel 已建立');
+} catch (e) {
+    console.log('BroadcastChannel 不可用:', e);
+}
+
+// 監聽 BroadcastChannel 消息
+if (broadcastChannel) {
+    broadcastChannel.onmessage = function(event) {
+        console.log('收到 BroadcastChannel 消息:', event.data);
+        if (event.data.type === 'updatePendingCount') {
+            console.log('通過 BroadcastChannel 更新待簽核筆數:', event.data.count, '部門:', event.data.dept);
+            if (event.data.dept === 'rd') {
+                updateRdPendingCountDisplay(event.data.count);
+            } else {
+                updateManufacturingPendingCountDisplay(event.data.count);
+            }
+        }
+    };
+}
+
+// 監聽來自其他頁面的消息，更新待簽核筆數
+window.addEventListener('message', function(event) {
+    console.log('收到 postMessage:', event.data);
+    if (event.data.type === 'updatePendingCount') {
+        console.log('通過 postMessage 更新待簽核筆數:', event.data.count, '部門:', event.data.dept);
+        if (event.data.dept === 'rd') {
+            updateRdPendingCountDisplay(event.data.count);
+        } else {
+            updateManufacturingPendingCountDisplay(event.data.count);
+        }
+    }
+});
+
+// 監聽自定義事件
+window.addEventListener('pendingCountUpdated', function(event) {
+    console.log('收到自定義事件:', event.detail);
+    if (event.detail.dept === 'rd') {
+        updateRdPendingCountDisplay(event.detail.count);
+    } else {
+        updateManufacturingPendingCountDisplay(event.detail.count);
+    }
+});
+
+// 更新製造部門待簽核筆數顯示
+function updateManufacturingPendingCountDisplay(count) {
+    console.log('正在更新製造部門待簽核筆數顯示:', count);
+    const pendingCountElement = document.querySelector('.manufacturing-pending-count');
+    if (pendingCountElement) {
+        if (count > 0) {
+            pendingCountElement.textContent = count;
+            pendingCountElement.style.display = 'inline';
+            console.log('已更新製造部門待簽核筆數為:', count);
+        } else {
+            pendingCountElement.style.display = 'none';
+            console.log('已隱藏製造部門待簽核筆數');
+        }
+    } else {
+        console.log('找不到製造部門待簽核筆數元素');
+    }
+}
+
+// 更新研發部門待簽核筆數顯示
+function updateRdPendingCountDisplay(count) {
+    console.log('正在更新研發部門待簽核筆數顯示:', count);
+    const pendingCountElement = document.querySelector('.rd-pending-count');
+    if (pendingCountElement) {
+        if (count > 0) {
+            pendingCountElement.textContent = count;
+            pendingCountElement.style.display = 'inline';
+            console.log('已更新研發部門待簽核筆數為:', count);
+        } else {
+            pendingCountElement.style.display = 'none';
+            console.log('已隱藏研發部門待簽核筆數');
+        }
+    } else {
+        console.log('找不到研發部門待簽核筆數元素');
+    }
+}
+
+// 通用更新函數（向後兼容）
+function updatePendingCountDisplay(count) {
+    updateManufacturingPendingCountDisplay(count);
+}
+
+// 頁面載入時檢查 localStorage 中的計數
+window.addEventListener('load', function() {
+    console.log('頁面載入，檢查 localStorage');
+    
+    // 檢查製造部門計數
+    const manufacturingCount = localStorage.getItem('manufacturing_pending_count');
+    if (manufacturingCount !== null) {
+        console.log('從 localStorage 讀取到製造部門計數:', manufacturingCount);
+        updateManufacturingPendingCountDisplay(parseInt(manufacturingCount));
+    }
+    
+    // 檢查研發部門計數
+    const rdCount = localStorage.getItem('rd_pending_count');
+    if (rdCount !== null) {
+        console.log('從 localStorage 讀取到研發部門計數:', rdCount);
+        updateRdPendingCountDisplay(parseInt(rdCount));
+    }
+});
+
+// 監聽 localStorage 變化事件
+window.addEventListener('storage', function(event) {
+    if (event.key === 'manufacturing_pending_count') {
+        console.log('localStorage 變化事件 - 製造部門:', event.newValue);
+        if (event.newValue !== null) {
+            updateManufacturingPendingCountDisplay(parseInt(event.newValue));
+        }
+    } else if (event.key === 'rd_pending_count') {
+        console.log('localStorage 變化事件 - 研發部門:', event.newValue);
+        if (event.newValue !== null) {
+            updateRdPendingCountDisplay(parseInt(event.newValue));
+        }
+    }
+});
+
+// 定期檢查 localStorage 中的計數變化（備用方案）
+setInterval(function() {
+    // 檢查製造部門計數
+    const manufacturingCount = localStorage.getItem('manufacturing_pending_count');
+    if (manufacturingCount !== null) {
+        const currentElement = document.querySelector('.manufacturing-pending-count');
+        if (currentElement) {
+            const currentCount = currentElement.textContent;
+            if (currentCount !== manufacturingCount) {
+                console.log('檢測到製造部門計數變化，從', currentCount, '更新為', manufacturingCount);
+                updateManufacturingPendingCountDisplay(parseInt(manufacturingCount));
+            }
+        }
+    }
+    
+    // 檢查研發部門計數
+    const rdCount = localStorage.getItem('rd_pending_count');
+    if (rdCount !== null) {
+        const currentElement = document.querySelector('.rd-pending-count');
+        if (currentElement) {
+            const currentCount = currentElement.textContent;
+            if (currentCount !== rdCount) {
+                console.log('檢測到研發部門計數變化，從', currentCount, '更新為', rdCount);
+                updateRdPendingCountDisplay(parseInt(rdCount));
+            }
+        }
+    }
+}, 500); // 每0.5秒檢查一次，更頻繁的檢查
+</script>
+
+<style>
+    .dropdown-menu {
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        border: none;
+        padding: 10px 0;
+    }
+    
+    .dropdown-item {
+        border-radius: 10px;
+        margin: 2px 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #e3f2fd;
+        transform: translateX(5px);
+    }
+    
+    /* 子選單樣式 */
+    .dropdown-submenu {
+        position: relative;
+    }
+    
+    .dropdown-submenu .dropdown-menu {
+        top: 0;
+        left: 100%;
+        margin-top: -1px;
+        margin-left: 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        min-width: 200px;
+    }
+    
+    .dropdown-submenu:hover .dropdown-menu {
+        display: block;
+    }
+    
+    .dropdown-submenu .dropdown-toggle::after {
+        display: inline-block;
+        margin-left: 0.255em;
+        vertical-align: 0.255em;
+        content: "";
+        border-top: 0.3em solid;
+        border-right: 0.3em solid transparent;
+        border-bottom: 0;
+        border-left: 0.3em solid transparent;
+    }
+    
+    .card {
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: none;
+    }
+    
+    .btn {
+        border-radius: 15px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .badge {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    .navbar-brand {
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+    
+    .nav-link {
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-link:hover {
+        transform: translateY(-1px);
+    }
+    
+    .welcome-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .menu-section {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .menu-title {
+        color: #2c3e50;
+        font-weight: 700;
+        margin-bottom: 25px;
+        text-align: center;
+    }
+    
+    .menu-item {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .menu-item:hover {
+        background: #e3f2fd;
+        border-color: #2196f3;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(33, 150, 243, 0.2);
+    }
+    
+    .menu-item h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .menu-item p {
+        color: #7f8c8d;
+        margin-bottom: 0;
+    }
+    
+    .logout-btn {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .logout-btn:hover {
+        background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(238, 90, 36, 0.3);
+        color: white;
+    }
+</style>
+{% endblock %} 

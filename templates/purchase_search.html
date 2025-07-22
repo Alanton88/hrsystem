@@ -1,0 +1,574 @@
+{% extends "base.html" %}
+
+{% block title %}總務事務用品請購單搜尋{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card mb-4">
+            <div class="card-header text-center">
+                <h2 class="fw-bold mb-0">
+                    <i class="fas fa-search me-2"></i>總務事務用品請購單搜尋
+                </h2>
+                <p class="mb-0 mt-2 opacity-75">請選擇搜尋方式</p>
+            </div>
+            <div class="card-body py-4">
+                <div class="row g-4">
+                    <!-- 搜尋方式選項 -->
+                    <div class="col-md-6 col-lg-4">
+                        <a href="{{ url_for('purchase_no_search') }}" class="text-decoration-none">
+                            <div class="card h-100 search-option-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-hashtag feature-icon"></i>
+                                    <h5 class="card-title">依請購單號搜尋</h5>
+                                    <p class="card-text">透過請購單號快速找到特定請購單</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-4">
+                        <a href="{{ url_for('purchase_date_search') }}" class="text-decoration-none">
+                            <div class="card h-100 search-option-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar-alt feature-icon"></i>
+                                    <h5 class="card-title">依請購日期搜尋</h5>
+                                    <p class="card-text">按日期範圍搜尋請購單</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-4">
+                        <a href="{{ url_for('purchase_department_search') }}" class="text-decoration-none">
+                            <div class="card h-100 search-option-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-building feature-icon"></i>
+                                    <h5 class="card-title">依請購部門搜尋</h5>
+                                    <p class="card-text">搜尋特定部門的請購單</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 search-option-card" onclick="selectSearchType('applicant')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-user feature-icon"></i>
+                                <h5 class="card-title">依申請人搜尋</h5>
+                                <p class="card-text">搜尋特定申請人的請購單</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-4">
+                        <a href="{{ url_for('purchase_approval_status_search') }}" class="text-decoration-none">
+                            <div class="card h-100 search-option-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check feature-icon"></i>
+                                    <h5 class="card-title">依簽核狀態搜尋</h5>
+                                    <p class="card-text">搜尋特定簽核狀態的請購單</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 search-option-card" onclick="selectSearchType('custom')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-cogs feature-icon"></i>
+                                <h5 class="card-title">自訂搜尋</h5>
+                                <p class="card-text">組合多個條件進行進階搜尋</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 搜尋表單區域 -->
+                <div id="searchFormContainer" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 id="searchFormTitle" class="mb-0"></h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="searchForm" method="POST">
+                                <div id="searchFormContent">
+                                    <!-- 動態載入搜尋表單內容 -->
+                                </div>
+                                <div class="text-center mt-3">
+                                    <button type="submit" class="btn btn-primary me-2">
+                                        <i class="fas fa-search me-1"></i>搜尋
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="resetSearch()">
+                                        <i class="fas fa-undo me-1"></i>重置
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 搜尋結果區域 -->
+                <div id="searchResultsContainer" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">搜尋結果</h5>
+                            <span id="resultCount" class="badge bg-primary"></span>
+                        </div>
+                        <div class="card-body">
+                            <div id="searchResults">
+                                <!-- 動態載入搜尋結果 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 搜尋結果詳情模態框 -->
+<div class="modal fade" id="purchaseDetailModal" tabindex="-1" aria-labelledby="purchaseDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="purchaseDetailModalLabel">請購單詳細資料</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="purchaseDetailContent">
+                <!-- 動態載入請購單詳細資料 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+.search-option-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+}
+
+.search-option-card:hover {
+    transform: translateY(-5px);
+    border-color: #0d6efd;
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.2);
+}
+
+.search-option-card.selected {
+    border-color: #0d6efd;
+    background-color: #f8f9ff;
+}
+
+.search-result-item {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.search-result-item:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 10px rgba(13, 110, 253, 0.1);
+}
+
+.status-badge {
+    font-size: 0.8em;
+    padding: 0.25rem 0.5rem;
+}
+
+.purchase-no {
+    font-weight: bold;
+    color: #0d6efd;
+}
+
+.detail-row {
+    margin-bottom: 0.5rem;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 100px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSearchType = '';
+
+function selectSearchType(type) {
+    currentSearchType = type;
+    
+    // 移除所有選中狀態
+    document.querySelectorAll('.search-option-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // 添加選中狀態到當前卡片
+    event.currentTarget.classList.add('selected');
+    
+    // 顯示搜尋表單
+    document.getElementById('searchFormContainer').style.display = 'block';
+    
+    // 根據搜尋類型載入對應的表單
+    loadSearchForm(type);
+}
+
+function loadSearchForm(type) {
+    const formContent = document.getElementById('searchFormContent');
+    const formTitle = document.getElementById('searchFormTitle');
+    
+    let formHTML = '';
+    let title = '';
+    
+    switch(type) {
+        case 'purchase_no':
+            // 請購單號搜尋已移至專門頁面
+            return;
+            break;
+            
+        case 'create_date':
+                            title = '依請購日期搜尋';
+            formHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="start_date" class="form-label fw-bold">開始日期</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="end_date" class="form-label fw-bold">結束日期</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date">
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'department':
+            title = '依請購部門搜尋';
+            formHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="department" class="form-label fw-bold">請購部門</label>
+                        <select class="form-select" id="department" name="department">
+                            <option value="">請選擇部門</option>
+                            <option value="製造部">製造部</option>
+                            <option value="研發部">研發部</option>
+                            <option value="業務部">業務部</option>
+                            <option value="財務部">財務部</option>
+                            <option value="人資部">人資部</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'applicant':
+            title = '依申請人搜尋';
+            formHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="applicant" class="form-label fw-bold">申請人</label>
+                        <input type="text" class="form-control" id="applicant" name="applicant" placeholder="請輸入申請人姓名">
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'approval_status':
+            title = '依簽核狀態搜尋';
+            formHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="approval_status" class="form-label fw-bold">簽核狀態</label>
+                        <select class="form-select" id="approval_status" name="approval_status">
+                            <option value="">請選擇狀態</option>
+                            <option value="待簽核">待簽核</option>
+                            <option value="核准">核准</option>
+                            <option value="駁回">駁回</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'custom':
+            title = '自訂搜尋';
+            formHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="custom_purchase_no" class="form-label fw-bold">請購單號</label>
+                        <input type="text" class="form-control" id="custom_purchase_no" name="custom_purchase_no" placeholder="請輸入請購單號">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="custom_department" class="form-label fw-bold">請購部門</label>
+                        <select class="form-select" id="custom_department" name="custom_department">
+                            <option value="">請選擇部門</option>
+                            <option value="製造部">製造部</option>
+                            <option value="研發部">研發部</option>
+                            <option value="業務部">業務部</option>
+                            <option value="財務部">財務部</option>
+                            <option value="人資部">人資部</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label for="custom_applicant" class="form-label fw-bold">申請人</label>
+                        <input type="text" class="form-control" id="custom_applicant" name="custom_applicant" placeholder="請輸入申請人姓名">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="custom_approval_status" class="form-label fw-bold">簽核狀態</label>
+                        <select class="form-select" id="custom_approval_status" name="custom_approval_status">
+                            <option value="">請選擇狀態</option>
+                            <option value="待簽核">待簽核</option>
+                            <option value="核准">核准</option>
+                            <option value="駁回">駁回</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label for="custom_start_date" class="form-label fw-bold">開始日期</label>
+                        <input type="date" class="form-control" id="custom_start_date" name="custom_start_date">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="custom_end_date" class="form-label fw-bold">結束日期</label>
+                        <input type="date" class="form-control" id="custom_end_date" name="custom_end_date">
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    formTitle.textContent = title;
+    formContent.innerHTML = formHTML;
+}
+
+function resetSearch() {
+    // 重置表單
+    document.getElementById('searchForm').reset();
+    
+    // 隱藏搜尋結果
+    document.getElementById('searchResultsContainer').style.display = 'none';
+    
+    // 移除選中狀態
+    document.querySelectorAll('.search-option-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // 隱藏搜尋表單
+    document.getElementById('searchFormContainer').style.display = 'none';
+}
+
+// 處理搜尋表單提交
+document.getElementById('searchForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const searchData = {};
+    
+    // 收集表單資料
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            searchData[key] = value;
+        }
+    }
+    
+    // 添加搜尋類型
+    searchData.search_type = currentSearchType;
+    
+    // 發送搜尋請求
+    fetch('/search-purchase-requests', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySearchResults(data.results);
+        } else {
+            alert('搜尋失敗: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('搜尋錯誤:', error);
+        alert('搜尋過程中發生錯誤');
+    });
+});
+
+function displaySearchResults(results) {
+    const resultsContainer = document.getElementById('searchResults');
+    const resultCount = document.getElementById('resultCount');
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="text-center text-muted"><i class="fas fa-search fa-3x mb-3"></i><p>沒有找到符合條件的請購單</p></div>';
+    } else {
+        let resultsHTML = '';
+        results.forEach(result => {
+            const statusClass = getStatusClass(result.簽核);
+            resultsHTML += `
+                <div class="search-result-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="purchase-no mb-1">${result.請購單號 || 'N/A'}</h6>
+                                    <div class="detail-row">
+                                        <span class="detail-label">申請人:</span>
+                                        <span>${result.申請人 || 'N/A'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">部門:</span>
+                                        <span>${result.請購部門 || 'N/A'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">品名:</span>
+                                        <span>${result.品名 || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge ${statusClass} status-badge">${result.簽核 || '待簽核'}</span>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewPurchaseDetail('${result.請購單號}')">
+                                            <i class="fas fa-eye me-1"></i>查看詳情
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        resultsContainer.innerHTML = resultsHTML;
+    }
+    
+    resultCount.textContent = `${results.length} 筆結果`;
+    document.getElementById('searchResultsContainer').style.display = 'block';
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case '核准':
+            return 'bg-success';
+        case '駁回':
+            return 'bg-danger';
+        case '待簽核':
+        default:
+            return 'bg-warning';
+    }
+}
+
+function viewPurchaseDetail(purchaseNo) {
+    fetch(`/purchase-detail/${purchaseNo}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPurchaseDetail(data.data);
+            } else {
+                alert('取得請購單詳細資料失敗: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('取得請購單詳細資料錯誤:', error);
+            alert('取得請購單詳細資料過程中發生錯誤');
+        });
+}
+
+function displayPurchaseDetail(purchase) {
+    const modalContent = document.getElementById('purchaseDetailContent');
+    
+    const detailHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="detail-row">
+                    <span class="detail-label">請購單號:</span>
+                    <span class="fw-bold">${purchase.請購單號 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                                        <span class="detail-label">請購日期:</span>
+                    <span>${purchase.請購日期 ? purchase.請購日期.replace(/-/g, '').replace(/\//g, '') : 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">請購部門:</span>
+                    <span>${purchase.請購部門 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">申請人:</span>
+                    <span>${purchase.申請人 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email:</span>
+                    <span>${purchase.mail || 'N/A'}</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="detail-row">
+                    <span class="detail-label">品名:</span>
+                    <span>${purchase.品名 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">規格:</span>
+                    <span>${purchase.規格 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">數量:</span>
+                    <span>${purchase.數量 || 'N/A'} ${purchase.單位 || ''}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">需求日期:</span>
+                                            <span>${purchase.需求日期 ? purchase.需求日期.replace(/-/g, '').replace(/\//g, '') : 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">簽核狀態:</span>
+                    <span class="badge ${getStatusClass(purchase.簽核)}">${purchase.簽核 || '待簽核'}</span>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="detail-row">
+                    <span class="detail-label">用途:</span>
+                    <span>${purchase.用途 || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">備註:</span>
+                    <span>${purchase.備註 || 'N/A'}</span>
+                </div>
+                ${purchase.駁回原因說明 ? `
+                <div class="detail-row">
+                    <span class="detail-label">請購單駁回原因:</span>
+                    <span class="text-danger">${purchase.駁回原因說明}</span>
+                </div>
+                ` : ''}
+                ${purchase.上傳附件 ? `
+                <div class="detail-row">
+                    <span class="detail-label">附件:</span>
+                    <a href="${purchase.上傳附件}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-paperclip me-1"></i>查看附件
+                    </a>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    modalContent.innerHTML = detailHTML;
+    
+    // 顯示模態框
+    const modal = new bootstrap.Modal(document.getElementById('purchaseDetailModal'));
+    modal.show();
+}
+</script>
+{% endblock %} 

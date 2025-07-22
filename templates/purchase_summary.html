@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+
+{% block title %}請購單彙總為採購清單{% endblock %}
+
+{% block head %}
+<!-- 添加PDF和Excel匯出所需的JavaScript庫 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header position-relative">
+                <div class="row align-items-center">
+                    <div class="col text-center">
+                        <h3 class="fw-bold mb-0">
+                            <i class="fas fa-list-alt me-2"></i>請購單彙總為採購清單
+                        </h3>
+                    </div>
+                    <div class="col-auto position-absolute top-0 end-0 p-3">
+                        <div class="text-end">
+                            <span class="badge bg-success me-2">
+                                彙總項目：<span class="fw-bold">{{ total_items }}</span>項
+                            </span>
+                            <span class="badge bg-info">
+                                核准請購單：<span class="fw-bold">{{ total_orders }}</span>筆
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if summary_data %}
+                <!-- 採購清單表格 -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col" class="text-center">#</th>
+                                <th scope="col">品名</th>
+                                <th scope="col">規格</th>
+                                <th scope="col" class="text-center">總數量</th>
+                                <th scope="col" class="text-center">單位</th>
+                                <th scope="col">請購單號</th>
+                                <th scope="col">申請部門</th>
+                                <th scope="col">需求日期</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summary_data %}
+                            <tr>
+                                <td class="text-center fw-bold">{{ loop.index }}</td>
+                                <td class="fw-bold text-primary">{{ item.品名 }}</td>
+                                <td>{{ item.規格 or '-' }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success fs-6">{{ item.總數量 }}</span>
+                                </td>
+                                <td class="text-center">{{ item.單位 }}</td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for purchase_no in item.請購單號列表 %}
+                                        <span class="badge bg-outline-primary purchase-no-link" 
+                                              style="cursor: pointer;" 
+                                              onclick="viewPurchaseDetail('{{ purchase_no }}')"
+                                              title="點擊查看請購單詳情">{{ purchase_no }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for dept in item.申請部門列表 %}
+                                        <span class="badge bg-outline-secondary">{{ dept }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for date in item.需求日期列表 %}
+                                        <span class="badge bg-outline-info">{{ date }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 統計資訊 -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>彙總統計
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4 class="text-success fw-bold">{{ total_items }}</h4>
+                                        <small class="text-muted">彙總項目數</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <h4 class="text-info fw-bold">{{ total_orders }}</h4>
+                                        <small class="text-muted">核准請購單數</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>說明
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-unstyled mb-0">
+                                    <li><i class="fas fa-check text-success me-2"></i>僅顯示簽核狀態為「核准」的請購單</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>相同品名、規格、單位的請購單會自動彙總</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>數量會自動累加計算</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% else %}
+                <!-- 空狀態 -->
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">目前沒有已核准的請購單</h5>
+                    <p class="text-muted">請先核准一些請購單，然後再查看採購清單</p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>返回主選單
+                    </a>
+                    {% if summary_data %}
+                    <button type="button" class="btn btn-primary btn-lg ms-2" onclick="printSummary()">
+                        <i class="fas fa-print me-2"></i>列印採購清單
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg ms-2" onclick="exportSummaryToExcel()">
+                        <i class="fas fa-file-excel me-2"></i>匯出Excel
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 請購單詳情模態框 -->
+<div class="modal fade" id="purchaseDetailModal" tabindex="-1" aria-labelledby="purchaseDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="purchaseDetailModalLabel">請購單詳情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="purchaseDetailContent">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">載入中...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-primary" onclick="printPurchaseDetail()">
+                    <i class="fas fa-print me-2"></i>列印
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf me-2"></i>另存PDF
+                </button>
+                <button type="button" class="btn btn-info" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-2"></i>另存Excel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 查看請購單詳情
+function viewPurchaseDetail(purchaseNo) {
+    document.getElementById('purchaseDetailModalLabel').textContent = `請購單詳情 - ${purchaseNo}`;
+    document.getElementById('purchaseDetailContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2">載入中...</p>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('purchaseDetailModal'));
+    modal.show();
+    
+    // 載入請購單詳細資料
+    fetch(`/purchase-detail/${purchaseNo}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPurchaseDetail(data.data);
+            } else {
+                document.getElementById('purchaseDetailContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('載入請購單詳情失敗:', error);
+            document.getElementById('purchaseDetailContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>載入失敗，請稍後再試
+                </div>
+            `;
+        });
+}
+
+// 顯示請購單詳情
+function displayPurchaseDetail(data) {
+    // 儲存當前請購單資料到全域變數
+    window.currentPurchaseData = data;
+    
+    const attachmentLink = data.上傳附件 ? 
+        `<a href="${data.上傳附件}" target="_blank" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-paperclip me-1"></i>查看附件
+        </a>` : 
+        '<span class="text-muted">無附件</span>';
+    
+    document.getElementById('purchaseDetailContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>基本資訊</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">請購單號：</td>
+                                <td>${data.請購單號 || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">請購日期：</td>
+                                <td>${data.請購日期 ? data.請購日期.replace(/-/g, '').replace(/\//g, '') : '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">請購部門：</td>
+                                <td><span class="badge bg-secondary">${data.請購部門 || '-'}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">申請人：</td>
+                                <td>${data.申請人 || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">聯絡信箱：</td>
+                                <td>${data.mail || '-'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>採購項目</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">品名：</td>
+                                <td>${data.品名 || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">規格：</td>
+                                <td>${data.規格 || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">數量：</td>
+                                <td><span class="badge bg-info">${data.數量 || '0'}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">單位：</td>
+                                <td>${data.單位 || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">需求日期：</td>
+                                <td>${data.需求日期 ? data.需求日期.replace(/-/g, '').replace(/\//g, '') : '-'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fas fa-clipboard me-2"></i>其他資訊</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>用途：</strong>${data.用途 || '未填寫'}</p>
+                                <p><strong>備註：</strong>${data.備註 || '無'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>簽核狀態：</strong>
+                                    <span class="badge ${getStatusBadgeClass(data.簽核)}">${data.簽核 || '待簽核'}</span>
+                                </p>
+                                <p><strong>請購單駁回原因：</strong>${data.駁回原因說明 || '無'}</p>
+                                <p><strong>附件：</strong>${attachmentLink}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 取得狀態徽章樣式
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case '核准': return 'bg-success';
+        case '駁回': return 'bg-danger';
+        case '待簽核': return 'bg-warning';
+        default: return 'bg-secondary';
+    }
+}
+
+// 列印請購單詳情
+function printPurchaseDetail() {
+    const printWindow = window.open('', '_blank');
+    const content = document.getElementById('purchaseDetailContent').innerHTML;
+    const title = document.getElementById('purchaseDetailModalLabel').textContent;
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${title}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+            <style>
+                @media print {
+                    .btn { display: none !important; }
+                    .modal-footer { display: none !important; }
+                }
+                .card { border: 1px solid #dee2e6; margin-bottom: 1rem; }
+                .card-header { background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; }
+                .table { margin-bottom: 0; }
+                .badge { font-size: 0.875em; }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid p-4">
+                <h3 class="text-center mb-4">${title}</h3>
+                ${content}
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
+}
+
+// 匯出PDF
+function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const title = document.getElementById('purchaseDetailModalLabel').textContent;
+    const content = document.getElementById('purchaseDetailContent');
+    
+    // 設定標題
+    doc.setFontSize(18);
+    doc.text(title, 20, 20);
+    
+    // 取得文字內容
+    const textContent = content.innerText || content.textContent;
+    const lines = doc.splitTextToSize(textContent, 170);
+    
+    doc.setFontSize(12);
+    doc.text(lines, 20, 40);
+    
+    // 儲存PDF
+    doc.save(`${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
+// 匯出Excel (XLSX格式)
+function exportToExcel() {
+    const purchaseData = getCurrentPurchaseData();
+    if (!purchaseData) {
+        alert('無法取得請購單資料');
+        return;
+    }
+    
+    // 建立工作表資料
+    const wsData = [
+        ['請購單詳細資料'],
+        [''],
+        ['基本資訊'],
+        ['請購單號', purchaseData.請購單號 || ''],
+        ['請購日期', purchaseData.請購日期 || ''],
+        ['請購部門', purchaseData.請購部門 || ''],
+        ['申請人', purchaseData.申請人 || ''],
+        ['聯絡信箱', purchaseData.mail || ''],
+        [''],
+        ['採購項目'],
+        ['品名', purchaseData.品名 || ''],
+        ['規格', purchaseData.規格 || ''],
+        ['數量', purchaseData.數量 || ''],
+        ['單位', purchaseData.單位 || ''],
+        ['需求日期', purchaseData.需求日期 || ''],
+        [''],
+        ['其他資訊'],
+        ['用途', purchaseData.用途 || ''],
+        ['備註', purchaseData.備註 || ''],
+        ['簽核狀態', purchaseData.簽核 || ''],
+        ['請購單駁回原因', purchaseData.駁回原因說明 || ''],
+        ['附件連結', purchaseData.上傳附件 || '']
+    ];
+    
+    // 建立工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // 設定欄寬
+    ws['!cols'] = [{ wch: 15 }, { wch: 30 }];
+    
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '請購單詳情');
+    
+    // 儲存檔案
+    const fileName = `請購單_${purchaseData.請購單號}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
+
+// 匯出採購清單Excel (XLSX格式)
+function exportSummaryToExcel() {
+    // 建立工作表資料
+    const wsData = [
+        ['採購清單彙總'],
+        [''],
+        ['品名', '規格', '總數量', '單位', '請購單號', '申請部門', '需求日期']
+    ];
+    
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const itemName = cells[1].textContent.trim();
+        const spec = cells[2].textContent.trim();
+        const quantity = cells[3].textContent.trim();
+        const unit = cells[4].textContent.trim();
+        const purchaseNos = Array.from(cells[5].querySelectorAll('.badge')).map(b => b.textContent.trim()).join('; ');
+        const departments = Array.from(cells[6].querySelectorAll('.badge')).map(b => b.textContent.trim()).join('; ');
+        const dates = Array.from(cells[7].querySelectorAll('.badge')).map(b => b.textContent.trim()).join('; ');
+        
+        wsData.push([itemName, spec, quantity, unit, purchaseNos, departments, dates]);
+    });
+    
+    // 建立工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // 設定欄寬
+    ws['!cols'] = [
+        { wch: 20 }, // 品名
+        { wch: 15 }, // 規格
+        { wch: 10 }, // 總數量
+        { wch: 8 },  // 單位
+        { wch: 25 }, // 請購單號
+        { wch: 15 }, // 申請部門
+        { wch: 12 }  // 需求日期
+    ];
+    
+    // 設定標題列樣式
+    const titleRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let col = titleRange.s.c; col <= titleRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (ws[cellAddress]) {
+            ws[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4472C4" } },
+                alignment: { horizontal: "center" }
+            };
+        }
+    }
+    
+    // 設定標題樣式
+    if (ws['A1']) {
+        ws['A1'].s = {
+            font: { bold: true, size: 16 },
+            alignment: { horizontal: "center" }
+        };
+    }
+    
+    // 合併標題儲存格
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }
+    ];
+    
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '採購清單');
+    
+    // 儲存檔案
+    const fileName = `採購清單_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
+
+// 取得當前請購單資料
+function getCurrentPurchaseData() {
+    // 這裡需要從全域變數或模態框資料中取得當前請購單資料
+    // 暫時返回null，實際實作時需要儲存當前請購單資料
+    return window.currentPurchaseData || null;
+}
+
+// 列印採購清單
+function printSummary() {
+    window.print();
+}
+
+// 頁面載入時的動畫效果
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            row.style.transition = 'all 0.5s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .card-header {
+        display: none !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .badge {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+        background: none !important;
+    }
+}
+
+.badge.bg-outline-primary {
+    background-color: transparent !important;
+    border: 1px solid #0d6efd;
+    color: #0d6efd;
+}
+
+.badge.bg-outline-secondary {
+    background-color: transparent !important;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+}
+
+.badge.bg-outline-info {
+    background-color: transparent !important;
+    border: 1px solid #0dcaf0;
+    color: #0dcaf0;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.purchase-no-link {
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.purchase-no-link:hover {
+    background-color: #0d6efd !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+.modal-xl {
+    max-width: 90%;
+}
+
+@media print {
+    .modal-footer {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %} 

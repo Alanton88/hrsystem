@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}總務事務用品請購單建立{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <div class="card mb-4">
+            <div class="card-header text-center">
+                <h3 class="fw-bold mb-0">
+                    <i class="fas fa-file-alt me-2"></i>總務事務用品請購單建立
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" action="#">
+                    
+                    <!-- 第一區塊：請購單資料 -->
+                    <div class="card mb-4 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>請購單資料
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">請購單號</label>
+                                    <input type="hidden" name="purchase_no" value="{{ purchase_no }}">
+                                    <input type="text" class="form-control" value="{{ purchase_no }}" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">請購日期</label>
+                                    <input type="text" class="form-control" value="{{ today }}" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">請購部門</label>
+                                    <select class="form-select" name="department" required>
+                                        <option value="">請選擇</option>
+                                        {% for d in departments %}
+                                        <option value="{{ d }}">{{ d }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">申請人</label>
+                                    <input type="text" class="form-control" name="applicant" value="{{ username }}" readonly required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">申請人mail</label>
+                                    <input type="email" class="form-control" name="applicant_mail" value="{{ user_mail }}" readonly required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 第二區塊：請購單內容 -->
+                    <div class="card mb-4 border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-shopping-cart me-2"></i>請購單內容
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">品名</label>
+                                    <input type="text" class="form-control" name="item_name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">規格</label>
+                                    <input type="text" class="form-control" name="spec">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">數量</label>
+                                    <input type="number" class="form-control" name="quantity" min="1" required>
+                                </div>
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">單位</label>
+                                    <select class="form-select" name="unit" required>
+                                        <option value="">請選擇</option>
+                                        {% for u in units %}
+                                        <option value="{{ u }}">{{ u }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">需求日期</label>
+                                    <input type="date" class="form-control" name="need_date" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">用途</label>
+                                    <input type="text" class="form-control" name="purpose">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">上傳附件</label>
+                                    <input type="file" class="form-control" name="attachment">
+                                    <div class="form-text">上傳後將存於Google Drive，並顯示超連結</div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">備註</label>
+                                <textarea class="form-control" name="note" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 第三區塊：主管簽核 -->
+                    {#
+                    <div class="card mb-4 border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-check me-2"></i>主管簽核
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold">請購單簽核</label>
+                                    <div class="mt-2">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="sign_status" id="pending" value="待簽核" checked>
+                                            <label class="form-check-label" for="pending">待簽核</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="sign_status" id="approved" value="核准">
+                                            <label class="form-check-label" for="approved">核准</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="sign_status" id="rejected" value="駁回">
+                                            <label class="form-check-label" for="rejected">駁回</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">請購單駁回原因</label>
+                                    <input type="text" class="form-control" name="reject_reason">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    #}
+
+                    <!-- 送出按鈕 -->
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>送出請購單
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

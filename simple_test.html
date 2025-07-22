@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡單搜尋測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>請購單號範圍搜尋測試</h1>
+        
+        <div class="form-group">
+            <label for="start_no">開始請購單號:</label>
+            <input type="text" id="start_no" value="20241201-001">
+        </div>
+        
+        <div class="form-group">
+            <label for="end_no">結束請購單號:</label>
+            <input type="text" id="end_no" value="20241201-010">
+        </div>
+        
+        <div class="form-group">
+            <button onclick="testSearch()">測試搜尋</button>
+            <button onclick="checkData()" style="background: #6c757d;">檢查資料</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        function testSearch() {
+            const startNo = document.getElementById('start_no').value.trim();
+            const endNo = document.getElementById('end_no').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '搜尋中...';
+            
+            fetch('/search-purchase-requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    search_type: 'purchase_no_range',
+                    start_purchase_no: startNo,
+                    end_purchase_no: endNo
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('搜尋結果:', data);
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <h3 class="success">搜尋成功！</h3>
+                        <p>找到 ${data.total_count} 筆記錄</p>
+                        <h4>搜尋條件:</h4>
+                        <p>開始: ${startNo}, 結束: ${endNo}</p>
+                        <h4>結果:</h4>
+                        <pre>${JSON.stringify(data.results, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3 class="error">搜尋失敗</h3>
+                        <p>錯誤訊息: ${data.message}</p>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('搜尋錯誤:', error);
+                resultDiv.innerHTML = `
+                    <h3 class="error">搜尋錯誤</h3>
+                    <p>錯誤: ${error.toString()}</p>
+                `;
+            });
+        }
+        
+        function checkData() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '檢查資料中...';
+            
+            fetch('/debug-data')
+            .then(response => response.json())
+            .then(data => {
+                console.log('資料檢查結果:', data);
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <h3 class="success">資料檢查成功！</h3>
+                        <p>總記錄數: ${data.total_records}</p>
+                        <h4>欄位名稱:</h4>
+                        <p>${data.columns.join(', ')}</p>
+                        <h4>範例資料:</h4>
+                        <pre>${JSON.stringify(data.sample_records, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3 class="error">資料檢查失敗</h3>
+                        <p>錯誤: ${data.error}</p>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('資料檢查錯誤:', error);
+                resultDiv.innerHTML = `
+                    <h3 class="error">資料檢查錯誤</h3>
+                    <p>錯誤: ${error.toString()}</p>
+                `;
+            });
+        }
+    </script>
+</body>
+</html> 

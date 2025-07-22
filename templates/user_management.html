@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}人員檔案管理{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">人員檔案管理</h2>
+    <ul class="nav nav-tabs" id="userTab" role="tablist" style="border-bottom-width:3px;">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active tab-big" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab">新增</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link tab-big" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button" role="tab">維護</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link tab-big" id="delete-tab" data-bs-toggle="tab" data-bs-target="#delete" type="button" role="tab">刪除</button>
+        </li>
+    </ul>
+    <style>
+    .tab-big {
+        font-size:2rem !important;
+        font-weight:bold;
+        padding: 0.7em 2.5em !important;
+        border-width:3px !important;
+        border-radius:1rem 1rem 0 0 !important;
+        background:#5c6bc0 !important;
+        color:#bbb !important;
+        transition:all 0.2s;
+    }
+    .tab-big.active, .tab-big:focus {
+        background:#fff !important;
+        color:#111 !important;
+        border-bottom:3px solid #fff !important;
+        box-shadow:0 4px 16px rgba(92,107,192,0.10);
+    }
+    /* 新增：表單欄位字體放大 */
+    .user-form-label, .user-form-input {
+        font-size:2rem !important;
+    }
+    </style>
+    <div class="tab-content" id="userTabContent">
+        <!-- 新增 -->
+        <div class="tab-pane fade show active p-3" id="add" role="tabpanel">
+            <h4 class="fw-bold py-3 px-4 mb-4" style="font-size:3rem; color:#111; background:#fff; border:3px solid #3949ab; border-radius:0.7rem; letter-spacing:0.1em; box-shadow:0 4px 16px rgba(26,35,126,0.15); text-shadow:2px 2px 8px #b3b3b3;">新增帳號</h4>
+            <form method="POST" action="/user-management/add">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label user-form-label">姓名</label>
+                        <input type="text" class="form-control user-form-input" name="name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label user-form-label">帳號</label>
+                        <input type="text" class="form-control user-form-input" name="username" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label user-form-label">密碼</label>
+                        <input type="password" class="form-control user-form-input" name="password" required>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label user-form-label">角色</label>
+                        <input type="text" class="form-control user-form-input" name="role" required>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label user-form-label">mail</label>
+                        <input type="email" class="form-control user-form-input" name="mail" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">新增</button>
+            </form>
+        </div>
+        <!-- 維護 -->
+        <div class="tab-pane fade p-3" id="edit" role="tabpanel">
+            <h4 class="fw-bold py-3 px-4 mb-4" style="font-size:3rem; color:#111; background:#fff; border:3px solid #26a69a; border-radius:0.7rem; letter-spacing:0.1em; box-shadow:0 4px 16px rgba(0,105,92,0.15); text-shadow:2px 2px 8px #b3b3b3;">帳號維護</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>姓名</th><th>帳號</th><th>密碼</th><th>角色</th><th>mail</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for user in users %}
+                    <tr>
+                        <form method="POST" action="/user-management/update">
+                        <td><input type="text" name="name" value="{{ user.姓名 }}" class="form-control" required></td>
+                        <td><input type="text" name="username" value="{{ user.帳號 }}" class="form-control" readonly></td>
+                        <td><input type="text" name="password" value="{{ user.密碼 }}" class="form-control" required></td>
+                        <td><input type="text" name="role" value="{{ user.角色 }}" class="form-control" required></td>
+                        <td><input type="email" name="mail" value="{{ user.mail }}" class="form-control" required></td>
+                        <td>
+                            <button type="submit" class="btn btn-success btn-sm">儲存</button>
+                        </td>
+                        </form>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- 刪除 -->
+        <div class="tab-pane fade p-3" id="delete" role="tabpanel">
+            <h4 class="fw-bold py-3 px-4 mb-4" style="font-size:3rem; color:#111; background:#fff; border:3px solid #e53935; border-radius:0.7rem; letter-spacing:0.1em; box-shadow:0 4px 16px rgba(183,28,28,0.15); text-shadow:2px 2px 8px #b3b3b3;">帳號刪除</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>姓名</th><th>帳號</th><th>密碼</th><th>角色</th><th>mail</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for user in users %}
+                    <tr>
+                        <form method="POST" action="/user-management/delete">
+                        <td>{{ user.姓名 }}</td>
+                        <td>{{ user.帳號 }}</td>
+                        <td>{{ user.密碼 }}</td>
+                        <td>{{ user.角色 }}</td>
+                        <td>{{ user.mail }}</td>
+                        <td>
+                            <input type="hidden" name="username" value="{{ user.帳號 }}">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('確定要刪除?')">刪除</button>
+                        </td>
+                        </form>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

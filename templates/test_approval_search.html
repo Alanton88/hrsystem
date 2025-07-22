@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簽核狀態搜尋測試</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h2>簽核狀態搜尋測試</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="testApprovalSearchForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="approval_type" class="form-label">簽核選項</label>
+                                    <select class="form-select" id="approval_type" name="approval_type" required>
+                                        <option value="">請選擇簽核選項</option>
+                                        <option value="purchase_approval">請購單簽核</option>
+                                        <option value="receipt_approval">驗收單簽核</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="approval_status" class="form-label">簽核狀態</label>
+                                    <select class="form-select" id="approval_status" name="approval_status" required>
+                                        <option value="">請選擇簽核狀態</option>
+                                        <option value="待簽核">待簽核</option>
+                                        <option value="核准">核准</option>
+                                        <option value="駁回">駁回</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-primary">搜尋</button>
+                            </div>
+                        </form>
+                        
+                        <div id="searchResults" class="mt-4"></div>
+                        <div id="debugInfo" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('testApprovalSearchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const approvalType = document.getElementById('approval_type').value;
+            const approvalStatus = document.getElementById('approval_status').value;
+            
+            console.log('搜尋參數:', { approvalType, approvalStatus });
+            
+            // 顯示調試信息
+            document.getElementById('debugInfo').innerHTML = `
+                <div class="alert alert-info">
+                    <h5>調試信息</h5>
+                    <p>簽核類型: ${approvalType}</p>
+                    <p>簽核狀態: ${approvalStatus}</p>
+                </div>
+            `;
+            
+            // 發送搜尋請求
+            fetch('/search-purchase-requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    search_type: 'approval_status',
+                    approval_type: approvalType,
+                    approval_status: approvalStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('API響應:', data);
+                
+                const resultsDiv = document.getElementById('searchResults');
+                if (data.success) {
+                    if (data.results.length > 0) {
+                        let html = '<h4>搜尋結果</h4><div class="table-responsive"><table class="table table-striped">';
+                        html += '<thead><tr><th>請購單號</th><th>請購日期</th><th>請購部門</th><th>申請人</th><th>請購單簽核</th><th>驗收單簽核狀態</th></tr></thead><tbody>';
+                        
+                        data.results.forEach(result => {
+                            html += `<tr>
+                                <td>${result.請購單號 || 'N/A'}</td>
+                                <td>${result.請購日期 ? result.請購日期.replace(/-/g, '').replace(/\//g, '') : 'N/A'}</td>
+                                <td>${result.請購部門 || 'N/A'}</td>
+                                <td>${result.申請人 || 'N/A'}</td>
+                                <td>${result.簽核 || 'N/A'}</td>
+                                <td>${result.驗收單簽核狀態 || 'N/A'}</td>
+                            </tr>`;
+                        });
+                        
+                        html += '</tbody></table></div>';
+                        resultsDiv.innerHTML = html;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="alert alert-warning">沒有找到符合條件的記錄</div>';
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">搜尋失敗: ${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('搜尋錯誤:', error);
+                document.getElementById('searchResults').innerHTML = `<div class="alert alert-danger">搜尋錯誤: ${error.message}</div>`;
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>驗收單列印測試</title>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A5;
+            margin: 10mm;
+        }
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 15px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        .info-section {
+            margin-bottom: 18px;
+        }
+        .info-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #333;
+            border-left: 4px solid #007bff;
+            padding-left: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+        }
+        .info-label {
+            font-weight: bold;
+            min-width: 100px;
+            color: #555;
+        }
+        .info-value {
+            flex: 1;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .receipt-table th,
+        .receipt-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .receipt-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+        }
+        .receipt-table td {
+            background-color: #fff;
+        }
+        .signature-section {
+            margin-top: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .signature-box {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 35px;
+            padding-top: 8px;
+        }
+        .signature-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        .signature-name {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .signature-date {
+            font-size: 10px;
+            color: #666;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status-processing { background-color: #cce5ff; color: #004085; border: 1px solid #b3d7ff; }
+        .status-completed { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .print-button:hover {
+            background: #0056b3;
+        }
+        @media print {
+            .print-button { display: none; }
+            body { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">列印驗收單</button>
+    
+    <div class="header">
+        <div class="title">驗收單</div>
+        <div class="subtitle">Receipt Form</div>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-title">請購單資訊</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">請購單號：</span>
+                <span class="info-value">20250718-001</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">請購日期：</span>
+                <span class="info-value">2025/07/18</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">請購部門：</span>
+                <span class="info-value">總務部</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">申請人：</span>
+                <span class="info-value">admin</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-title">採購項目</div>
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>品名</th>
+                    <th>規格</th>
+                    <th>數量</th>
+                    <th>單位</th>
+                    <th>需求日期</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>筆</td>
+                    <td>藍</td>
+                    <td style="text-align: center;">10</td>
+                    <td style="text-align: center;">支</td>
+                    <td>2025-07-18</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-title">驗收資訊</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">驗收單驗收狀態：</span>
+                <span class="info-value">
+                    <span class="status-badge status-completed">已驗收</span>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">驗收日期：</span>
+                <span class="info-value">2025/01/27</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">驗收人員：</span>
+                <span class="info-value">系統管理員</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">備註：</span>
+                <span class="info-value">品質良好，數量正確</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="signature-section">
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-title">申請人簽名</div>
+            <div class="signature-name">admin</div>
+            <div class="signature-date">2025/07/18</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-title">驗收人員簽名</div>
+            <div class="signature-name">系統管理員</div>
+            <div class="signature-date">2025/01/27</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-title">主管簽核</div>
+            <div class="signature-name">系統管理員</div>
+            <div class="signature-date">2025/01/27</div>
+        </div>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-title">主管簽核資訊</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">簽核狀態：</span>
+                <span class="info-value">
+                    <span class="status-badge status-completed">核准</span>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">簽核日期：</span>
+                <span class="info-value">2025/01/27</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">簽核人員：</span>
+                <span class="info-value">系統管理員</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">驗收單驗簽核備註：</span>
+                <span class="info-value">驗收程序完整，品質符合要求</span>
+            </div>
+        </div>
+    </div>
+    </div>
+    
+    <div class="footer">
+        <p>本驗收單由系統自動產生，列印時間：2025/01/27 下午 2:30:45</p>
+        <p>請妥善保管此驗收單作為驗收憑證</p>
+    </div>
+</body>
+</html> 

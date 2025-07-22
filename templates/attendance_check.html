@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}每日出勤核對{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{{ url_for('export_schedule') }}" class="btn btn-primary">班表匯出</a>
+    </div>
+    <h2 class="mb-4">每日出勤核對</h2>
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>姓名</th>
+                <th>工號</th>
+                <th>班別</th>
+                <th>上班打卡紀錄</th>
+                <th>下班打卡紀錄</th>
+                <th>狀態</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in attendance_data %}
+            <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.emp_id }}</td>
+                <td>{{ row.shift }}</td>
+                <td>{{ row.clock_in }}</td>
+                <td>{{ row.clock_out }}</td>
+                <td>
+                    {% if row.status == '正常' %}
+                        <span class="badge bg-success">正常</span>
+                    {% else %}
+                        <span class="badge bg-danger">異常</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

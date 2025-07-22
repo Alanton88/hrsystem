@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dept_name }}請購單簽核{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header position-relative">
+                <div class="row align-items-center">
+                    <div class="col text-center">
+                        <h3 class="fw-bold mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>{{ dept_name }}請購單簽核
+                        </h3>
+                    </div>
+                    <div class="col-auto position-absolute top-0 end-0 p-3">
+                        <span class="text-danger fw-bold">
+                            待簽核：<span class="text-danger">{{ records|selectattr('請購單簽核', 'equalto', '待簽核')|list|length + records|selectattr('請購單簽核', 'undefined')|list|length }}</span>筆
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if records %}
+                <!-- 請購單區塊列表 -->
+                <div class="purchase-requests-container">
+                    {% for record in records %}
+                    <div class="purchase-request-block mb-4" data-purchase-no="{{ record.請購單號 }}">
+                        <!-- 請購單號標題 -->
+                        <div class="request-header mb-3">
+                            <h4 class="text-primary fw-bold">
+                                <i class="fas fa-file-alt me-2"></i>請購單號：<span class="purchase-no">{{ record.請購單號 }}</span>
+                            </h4>
+                        </div>
+                        
+                        <!-- 第一區塊：請購單資料 -->
+                        <div class="card mb-3 border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0 text-start">
+                                    <i class="fas fa-info-circle me-2"></i>請購單資料
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3 mb-2">
+                                        <span class="fw-bold">請購日期：</span>{{ record.請購日期.replace('-', '').replace('/', '') if record.請購日期 else '' }}
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <span class="fw-bold">請購部門：</span>{{ record.請購部門 }}
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <span class="fw-bold">申請人：</span>{{ record.申請人 }}
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <span class="fw-bold">申請人mail：</span>{{ record.mail }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 第二區塊：請購單內容 -->
+                        <div class="card mb-2 border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0 text-start">
+                                    <i class="fas fa-shopping-cart me-2"></i>請購單內容
+                                </h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row">
+                                    <!-- 第一列：主要資訊 -->
+                                    <div class="col-md-12 mb-1">
+                                        <div class="row">
+                                            <div class="col-md-2 mb-1">
+                                                <span class="fw-bold">品名：</span>{{ record.品名 }}
+                                            </div>
+                                            <div class="col-md-2 mb-1">
+                                                <span class="fw-bold">規格：</span>{{ record.規格 or '-' }}
+                                            </div>
+                                            <div class="col-md-2 mb-1">
+                                                <span class="fw-bold">數量：</span>{{ record.數量 }}
+                                            </div>
+                                            <div class="col-md-2 mb-1">
+                                                <span class="fw-bold">單位：</span>{{ record.單位 }}
+                                            </div>
+                                            <div class="col-md-4 mb-1">
+                                                <span class="fw-bold">需求日期：</span>{{ record.需求日期.replace('-', '').replace('/', '') if record.需求日期 else '' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 第二列：次要資訊 -->
+                                    <div class="col-md-12">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-1">
+                                                <span class="fw-bold">用途：</span>{{ record.用途 or '-' }}
+                                            </div>
+                                            <div class="col-md-4 mb-1">
+                                                <span class="fw-bold">備註：</span>{{ record.備註 or '-' }}
+                                            </div>
+                                            <div class="col-md-4 mb-1">
+                                                <span class="fw-bold">上傳附件：</span>
+                                                {% if record.上傳附件 %}
+                                                <a href="{{ record.上傳附件 }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-paperclip"></i> 查看附件
+                                                </a>
+                                                {% else %}
+                                                <span class="text-muted">無附件</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 第三區塊：主管簽核 -->
+                        <div class="card mb-2 border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0 text-start">
+                                    <i class="fas fa-user-check me-2"></i>主管簽核
+                                </h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <span class="fw-bold">簽核狀態：</span>
+                                        <select class="form-select form-select-sm approval-status" 
+                                                data-purchase-no="{{ record.請購單號 }}" 
+                                                onchange="updateStatus('{{ record.請購單號 }}', this.value)">
+                                            <option value="待簽核" {% if record.請購單簽核 == '待簽核' or not record.請購單簽核 %}selected{% endif %}>待簽核</option>
+                                            <option value="核准" {% if record.請購單簽核 == '核准' %}selected{% endif %}>核准</option>
+                                            <option value="駁回" {% if record.請購單簽核 == '駁回' %}selected{% endif %}>駁回</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <span class="fw-bold">簽核人員：</span>
+                                        <span class="text-info">{{ record.請購單簽核人員 or '尚未簽核' }}</span>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <span class="fw-bold">簽核日期：</span>
+                                        <span class="text-info">{{ record.請購單簽核日期 or '尚未簽核' }}</span>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12 mb-2">
+                                        <span class="fw-bold">請購單駁回原因：</span>
+                                        <input type="text" class="form-control form-control-sm reject-reason" 
+                                               value="{{ record.駁回原因說明 or '' }}" 
+                                               placeholder="駁回時請填寫原因"
+                                               data-purchase-no="{{ record.請購單號 }}"
+                                               onchange="updateRejectReason('{{ record.請購單號 }}', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 儲存按鈕 -->
+                        <div class="text-end mb-2">
+                            <button type="button" class="btn btn-primary" 
+                                    onclick="saveRow('{{ record.請購單號 }}')">
+                                <i class="fas fa-save me-1"></i> 儲存
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- 批量操作 -->
+                <div class="mt-4 text-center">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="saveAll()">
+                        <i class="fas fa-save me-2"></i>批量儲存
+                    </button>
+                </div>
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">目前沒有{{ dept_name }}的請購單</h5>
+                    <p class="text-muted">該部門尚未有任何請購單需要簽核</p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>返回主選單
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 儲存變更的資料
+let pendingChanges = {};
+
+function updateStatus(purchaseNo, status) {
+    if (!pendingChanges[purchaseNo]) {
+        pendingChanges[purchaseNo] = {};
+    }
+    pendingChanges[purchaseNo].status = status;
+    
+    // 如果選擇駁回，自動聚焦到駁回原因欄位
+    if (status === '駁回') {
+        const rejectReasonInput = document.querySelector(`input[data-purchase-no="${purchaseNo}"]`);
+        if (rejectReasonInput) {
+            rejectReasonInput.focus();
+        }
+    }
+}
+
+function updateRejectReason(purchaseNo, reason) {
+    if (!pendingChanges[purchaseNo]) {
+        pendingChanges[purchaseNo] = {};
+    }
+    pendingChanges[purchaseNo].reject_reason = reason;
+}
+
+
+
+function saveRow(purchaseNo) {
+    const changes = pendingChanges[purchaseNo];
+    if (!changes) {
+        alert('沒有變更需要儲存');
+        return;
+    }
+    
+    fetch('/update-approval-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            purchase_no: purchaseNo,
+            status: changes.status || '待簽核',
+            reason: changes.reject_reason || '',
+            dept: '{{ dept_code }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 清除已儲存的變更
+            delete pendingChanges[purchaseNo];
+            
+            // 找到對應的請購單區塊
+            const purchaseBlock = document.querySelector(`[data-purchase-no="${purchaseNo}"]`);
+            console.log('尋找請購單區塊:', purchaseNo);
+            console.log('找到的區塊:', purchaseBlock);
+            console.log('變更內容:', changes);
+            
+            if (purchaseBlock) {
+                // 如果狀態不是「待簽核」，則從頁面移除該區塊
+                if (changes.status && changes.status !== '待簽核') {
+                    console.log('準備移除請購單:', purchaseNo, '狀態:', changes.status);
+                    purchaseBlock.style.transition = 'opacity 0.5s ease-out';
+                    purchaseBlock.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        purchaseBlock.remove();
+                        console.log('請購單已移除:', purchaseNo);
+                        
+                        // 更新儀表板上的待簽核筆數
+                        updateDashboardPendingCount();
+                        
+                        // 檢查是否還有其他請購單
+                        const remainingBlocks = document.querySelectorAll('.purchase-request-block');
+                        console.log('剩餘請購單數量:', remainingBlocks.length);
+                        if (remainingBlocks.length === 0) {
+                            // 如果沒有其他請購單，重新載入頁面顯示空狀態
+                            location.reload();
+                        }
+                    }, 500);
+                    
+                    showToast('儲存成功，請購單已從待簽核清單中移除', 'success');
+                } else {
+                    console.log('狀態為待簽核，只更新顯示');
+                    // 如果狀態是「待簽核」，只更新顯示
+                    const statusSelect = purchaseBlock.querySelector('.approval-status');
+                    const reasonInput = purchaseBlock.querySelector('.reject-reason');
+                    
+                    if (changes.status) {
+                        statusSelect.value = changes.status;
+                    }
+                    if (changes.reject_reason !== undefined) {
+                        reasonInput.value = changes.reject_reason;
+                    }
+                    
+                    showToast('儲存成功', 'success');
+                }
+            } else {
+                console.error('找不到請購單區塊:', purchaseNo);
+                showToast('找不到請購單區塊', 'error');
+            }
+        } else {
+            showToast('儲存失敗：' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('儲存失敗，請稍後再試', 'error');
+    });
+}
+
+
+
+function saveAll() {
+    const purchaseNos = Object.keys(pendingChanges);
+    if (purchaseNos.length === 0) {
+        showToast('沒有變更需要儲存', 'info');
+        return;
+    }
+    
+    let savedCount = 0;
+    let totalCount = purchaseNos.length;
+    
+    purchaseNos.forEach(purchaseNo => {
+        const changes = pendingChanges[purchaseNo];
+        fetch('/update-approval-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                purchase_no: purchaseNo,
+                status: changes.status || '待簽核',
+                reason: changes.reject_reason || '',
+                dept: '{{ dept_code }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            savedCount++;
+            if (data.success) {
+                delete pendingChanges[purchaseNo];
+            }
+            
+            if (savedCount === totalCount) {
+                if (Object.keys(pendingChanges).length === 0) {
+                    showToast('所有變更已儲存成功', 'success');
+                    location.reload();
+                } else {
+                    showToast('部分變更儲存失敗', 'warning');
+                }
+            }
+        })
+        .catch(error => {
+            savedCount++;
+            console.error('Error:', error);
+            if (savedCount === totalCount) {
+                showToast('儲存過程中發生錯誤', 'error');
+            }
+        });
+    });
+}
+
+function showToast(message, type) {
+    // 簡單的提示訊息
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // 3秒後自動移除
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 3000);
+}
+
+// 建立 BroadcastChannel 用於跨頁面通信
+let broadcastChannel;
+try {
+    broadcastChannel = new BroadcastChannel('pending_count_updates');
+} catch (e) {
+    console.log('BroadcastChannel 不可用，使用備用方案');
+}
+
+// 更新儀表板上的待簽核筆數
+function updateDashboardPendingCount() {
+    // 根據部門類型決定調用哪個 API
+    const deptCode = '{{ dept_code }}';
+    const apiEndpoint = deptCode === 'rd' ? '/get-rd-pending-count' : '/get-manufacturing-pending-count';
+    const storageKey = deptCode === 'rd' ? 'rd_pending_count' : 'manufacturing_pending_count';
+    
+    console.log('正在更新', deptCode === 'rd' ? '研發部門' : '製造部門', '待簽核筆數');
+    
+    fetch(apiEndpoint)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('獲取到新的待簽核筆數:', data.count);
+            
+            // 將新的計數存儲到 localStorage（這會觸發 storage 事件）
+            localStorage.setItem(storageKey, data.count);
+            console.log('已更新 localStorage:', data.count);
+            
+            // 使用 BroadcastChannel 發送消息
+            if (broadcastChannel) {
+                broadcastChannel.postMessage({
+                    type: 'updatePendingCount',
+                    count: data.count,
+                    dept: deptCode
+                });
+                console.log('已通過 BroadcastChannel 發送消息');
+            }
+            
+            // 觸發自定義事件
+            window.dispatchEvent(new CustomEvent('pendingCountUpdated', {
+                detail: { count: data.count, dept: deptCode }
+            }));
+            
+            // 嘗試更新父視窗的計數（如果存在）
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage({
+                        type: 'updatePendingCount',
+                        count: data.count,
+                        dept: deptCode
+                    }, '*');
+                    console.log('已發送消息到父視窗');
+                } catch (e) {
+                    console.log('無法更新父視窗的計數:', e);
+                }
+            }
+            
+            // 嘗試更新所有同源的視窗
+            try {
+                window.postMessage({
+                    type: 'updatePendingCount',
+                    count: data.count,
+                    dept: deptCode
+                }, '*');
+                console.log('已發送消息到所有視窗');
+            } catch (e) {
+                console.log('無法發送消息到所有視窗:', e);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('更新待簽核筆數失敗:', error);
+    });
+}
+
+// 頁面載入時檢查是否有未儲存的變更
+window.addEventListener('beforeunload', function(e) {
+    if (Object.keys(pendingChanges).length > 0) {
+        e.preventDefault();
+        e.returnValue = '您有未儲存的變更，確定要離開嗎？';
+    }
+});
+</script>
+{% endblock %} 

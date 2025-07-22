@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>驗收單檢核機制測試</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h2>驗收單檢核機制測試</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>檢核機制說明</h5>
+                            <p>此測試頁面用於驗證驗收單檢核機制：只有當驗收作業驗收單驗收狀態不是「待驗收」時，主管才能進行簽核。</p>
+                            <hr>
+                            <h6>使用步驟：</h6>
+                            <ol>
+                                <li>輸入請購單號</li>
+                                <li>點擊「獲取當前狀態」查看實際的驗收狀態</li>
+                                <li>選擇簽核狀態（核准/駁回）</li>
+                                <li>點擊「測試驗收單檢核機制」進行測試</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">請購單號</label>
+                                <input type="text" class="form-control" id="testPurchaseNo" value="20250718-001" placeholder="請輸入請購單號">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">當前驗收單驗收狀態（僅供顯示）</label>
+                                <select class="form-select" id="testReceiptStatus" disabled>
+                                    <option value="待驗收">待驗收</option>
+                                    <option value="驗收中">驗收中</option>
+                                    <option value="已驗收">已驗收</option>
+                                    <option value="驗收異常">驗收異常</option>
+                                </select>
+                                <small class="text-muted">此欄位會根據「獲取當前狀態」自動更新</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">簽核狀態</label>
+                                <select class="form-select" id="testApprovalStatus">
+                                    <option value="">請選擇簽核狀態</option>
+                                    <option value="核准">核准</option>
+                                    <option value="駁回">駁回</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">驗收單驗簽核備註</label>
+                                <input type="text" class="form-control" id="testApprovalNote" placeholder="請輸入驗收單驗簽核備註（可選）">
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mb-4">
+                            <button type="button" class="btn btn-info me-2" onclick="getCurrentStatus()">
+                                <i class="fas fa-search me-2"></i>獲取當前狀態
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="testReceiptApprovalCheck()">
+                                <i class="fas fa-shield-alt me-2"></i>測試驗收單檢核機制
+                            </button>
+                        </div>
+                        
+                        <div id="testResult" class="mt-4"></div>
+                        
+                        <hr class="my-4">
+                        
+                        <h5>檢核機制規則：</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-danger">
+                                    <div class="card-header bg-danger text-white">
+                                        <h6 class="mb-0"><i class="fas fa-times-circle me-2"></i>檢核失敗</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="mb-0">
+                                            <li>驗收單驗收狀態 = 「待驗收」</li>
+                                            <li>嘗試進行主管簽核</li>
+                                            <li><strong>結果：</strong>檢核失敗，無法簽核</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="fas fa-check-circle me-2"></i>檢核成功</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="mb-0">
+                                            <li>驗收單驗收狀態 ≠ 「待驗收」</li>
+                                            <li>進行主管簽核</li>
+                                            <li><strong>結果：</strong>檢核成功，可以簽核</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning mt-4">
+                            <strong>注意：</strong>請同時查看伺服器控制台的調試輸出，以確認檢核過程。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCurrentStatus() {
+            const purchaseNo = document.getElementById('testPurchaseNo').value.trim();
+            
+            if (!purchaseNo) {
+                alert('請輸入請購單號');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = '<div class="alert alert-info">正在獲取當前狀態...</div>';
+            
+            fetch(`/get-purchase-status/${purchaseNo}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('當前狀態:', data);
+                
+                if (data.success) {
+                    const status = data.data;
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>當前狀態</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>請購單號：</strong>${status.purchase_no}</p>
+                                    <p><strong>驗收單驗收狀態：</strong><span class="badge bg-primary">${status.receipt_status}</span></p>
+                                    <p><strong>請購單簽核：</strong><span class="badge bg-secondary">${status.approval_status || 'N/A'}</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>驗收簽核狀態：</strong><span class="badge bg-info">${status.receipt_approval_status || 'N/A'}</span></p>
+                                    <p><strong>驗收簽核人員：</strong><span class="badge bg-warning">${status.receipt_approval_person || 'N/A'}</span></p>
+                                    <p><strong>驗收簽核日期：</strong><span class="badge bg-success">${status.receipt_approval_date || 'N/A'}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 更新下拉選單以反映實際狀態
+                    document.getElementById('testReceiptStatus').value = status.receipt_status;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-exclamation-circle me-2"></i>獲取狀態失敗</h5>
+                            <p><strong>錯誤訊息：</strong>${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('獲取狀態錯誤:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>獲取狀態錯誤</h5>
+                        <p><strong>錯誤訊息：</strong>${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+        
+                function testReceiptApprovalCheck() {
+            const purchaseNo = document.getElementById('testPurchaseNo').value.trim();
+            const approvalStatus = document.getElementById('testApprovalStatus').value;
+            const approvalNote = document.getElementById('testApprovalNote').value.trim();
+            
+            if (!purchaseNo) {
+                alert('請輸入請購單號');
+                return;
+            }
+            
+            if (!approvalStatus) {
+                alert('請選擇簽核狀態');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = '<div class="alert alert-info">正在測試檢核機制...</div>';
+            
+            console.log('測試資料:', {
+                purchaseNo,
+                approvalStatus,
+                approvalNote
+            });
+            
+            // 直接測試主管簽核（使用實際的驗收狀態）
+            const testData = {
+                purchase_no: purchaseNo,
+                approval_status: approvalStatus,
+                approval_date: '',
+                approver: '',
+                approval_note: approvalNote
+            };
+            
+            console.log('測試主管簽核資料:', testData);
+            
+            fetch('/update-receipt-approval', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(testData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('測試結果:', data);
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle me-2"></i>檢核成功</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>請購單號：</strong>${purchaseNo}</p>
+                                    <p><strong>簽核狀態：</strong><span class="badge bg-primary">${data.approval_status}</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>簽核人員：</strong><span class="badge bg-info">${data.approver || 'N/A'}</span></p>
+                                    <p><strong>簽核日期：</strong><span class="badge bg-success">${data.approval_date || 'N/A'}</span></p>
+                                </div>
+                            </div>
+                            ${data.approval_note ? `<p><strong>驗收單驗簽核備註：</strong>${data.approval_note}</p>` : ''}
+                            <hr>
+                            <p><strong>回應訊息：</strong>${data.message}</p>
+                        </div>
+                    `;
+                } else {
+                    let alertClass = 'alert-danger';
+                    let icon = 'fas fa-exclamation-circle';
+                    
+                    if (data.error_type === 'receipt_status_pending') {
+                        alertClass = 'alert-warning';
+                        icon = 'fas fa-shield-alt';
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="alert ${alertClass}">
+                            <h5><i class="${icon} me-2"></i>檢核失敗</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>請購單號：</strong>${purchaseNo}</p>
+                                    <p><strong>簽核狀態：</strong><span class="badge bg-secondary">${approvalStatus}</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>錯誤類型：</strong><span class="badge bg-danger">${data.error_type || 'N/A'}</span></p>
+                                </div>
+                            </div>
+                            <hr>
+                            <p><strong>錯誤訊息：</strong>${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('測試錯誤:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>測試錯誤</h5>
+                        <p><strong>錯誤訊息：</strong>${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+        
+        // 頁面載入時的說明
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('驗收單檢核機制測試頁面已載入');
+            console.log('測試規則：只有當驗收單驗收狀態不是「待驗收」時，才能進行主管簽核');
+        });
+    </script>
+</body>
+</html> 

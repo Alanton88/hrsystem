@@ -1,0 +1,2128 @@
+{% extends "base.html" %}
+
+{% block title %}驗收單作業{% endblock %}
+
+{% block head %}
+<!-- 添加Excel匯出所需的JavaScript庫 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header position-relative">
+                <div class="row align-items-center">
+                    <div class="col text-center">
+                        <h3 class="fw-bold mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>驗收單作業
+                        </h3>
+                    </div>
+                    <div class="col-auto position-absolute top-0 end-0 p-3">
+                        <div class="text-end">
+                            <span class="badge bg-success me-2">
+                                待驗收請購單：<span class="fw-bold">{{ total_approved }}</span>筆
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if approved_records %}
+                <!-- 搜尋區域 -->
+                <div class="card mb-4 border-primary search-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search me-2"></i>搜尋與篩選
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">請購單號搜尋</label>
+                                <input type="text" class="form-control" id="purchaseNoSearch" 
+                                       placeholder="請輸入請購單號" onkeyup="filterTable()" 
+                                       list="purchaseNoSuggestions">
+                                <datalist id="purchaseNoSuggestions">
+                                    {% for record in approved_records %}
+                                    <option value="{{ record.請購單號 }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">請購部門</label>
+                                <select class="form-select" id="departmentFilter" onchange="filterTable()">
+                                    <option value="">全部部門</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept }}">{{ dept }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">申請人</label>
+                                <select class="form-select" id="applicantFilter" onchange="filterTable()">
+                                    <option value="">全部申請人</option>
+                                    {% for applicant in applicants %}
+                                    <option value="{{ applicant }}">{{ applicant }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">驗收狀態</label>
+                                <select class="form-select" id="statusFilter" onchange="filterTable()">
+                                    <option value="">全部狀態</option>
+                                    <option value="待驗收">待驗收</option>
+                                    <option value="已驗收">已驗收</option>
+                                    <option value="驗收異常">驗收異常</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                                    <i class="fas fa-times me-1"></i>清除篩選
+                                </button>
+                                <span class="ms-3 text-muted">
+                                    顯示結果：<span id="filteredCount" class="fw-bold">{{ total_approved }}</span> 筆
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 驗收單表格 -->
+                <div class="table-responsive">
+                    <!-- 無搜尋結果提示 -->
+                    <div id="noResultsMessage" class="text-center py-4" style="display: none;">
+                        <i class="fas fa-search fa-2x text-muted mb-3"></i>
+                        <h5 class="text-muted">沒有符合搜尋條件的結果</h5>
+                        <p class="text-muted">請嘗試調整搜尋條件或清除篩選</p>
+                        <button type="button" class="btn btn-outline-primary" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>清除篩選
+                        </button>
+                    </div>
+                    
+                    <table class="table table-striped table-hover" id="receiptTable" style="line-height: 1.2;">
+                        <thead class="table-dark" style="line-height: 1.2;">
+                            <!-- 第一行標題：基本資訊 -->
+                            <tr style="height: 40px;">
+                                <th scope="col" class="text-center" style="width: 50px;">
+                                </th>
+                                <th scope="col" style="width: 200px;">請購單號</th>
+                                <th scope="col" style="width: 100px;">請購日期</th>
+                                <th scope="col" style="width: 100px;">請購部門</th>
+                                <th scope="col" style="width: 80px;">申請人</th>
+                                <th scope="col" style="width: 150px;">品名</th>
+                                <th scope="col" style="width: 100px;">規格</th>
+                                <th scope="col" style="width: 60px;">數量</th>
+                                <th scope="col" style="width: 60px; white-space: normal; word-break: break-all;">單位</th>
+                                <th scope="col" style="width: 100px; white-space: normal; word-break: break-all; font-size: 0.85em;">需求日期</th>
+                            </tr>
+                            <!-- 第二行標題：驗收作業功能 -->
+                            <tr style="height: 40px;">
+                                <th scope="col" class="text-center" style="width: 50px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAll">
+                                </th>
+                                <th scope="col" style="width: 200px;">驗收單驗收狀態</th>
+                                <th scope="col" style="width: 200px;">驗收單簽核狀態</th>
+                                <th scope="col" style="width: 500px;">驗收單驗簽核備註</th>
+                                <th scope="col" style="width: 590px; background-color: #495057;" colspan="6">
+                                    <span class="text-white">檢視與建立驗收單</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in approved_records %}
+                            <!-- 第一行：基本資訊 -->
+                            <tr data-purchase-no="{{ record.請購單號 }}" class="table-light" style="line-height: 1.2; height: 40px;"
+                                {% if record.編輯狀態 == '唯讀' %}style="display: none;"{% endif %}>
+                                <td class="text-center">
+                                </td>
+                                <td class="fw-bold text-primary">{{ record.請購單號 }}</td>
+                                <td style="font-size: 0.85em;">{{ record.請購日期.replace('-', '').replace('/', '') if record.請購日期 else '' }}</td>
+                                <td>
+                                    <span class="badge bg-outline-secondary">{{ record.請購部門 }}</span>
+                                </td>
+                                <td>{{ record.申請人 }}</td>
+                                <td class="fw-bold">{{ record.品名 }}</td>
+                                <td>{{ record.規格 or '-' }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ record.數量 }}</span>
+                                </td>
+                                <td class="text-center">{{ record.單位 }}</td>
+                                <td style="font-size: 0.85em;">{{ record.需求日期.replace('-', '').replace('/', '') if record.需求日期 else '' }}</td>
+                            </tr>
+                            <!-- 第二行：驗收作業功能 -->
+                            <tr data-purchase-no="{{ record.請購單號 }}" class="table-secondary" style="line-height: 1.2; height: 40px;"
+                                {% if record.編輯狀態 == '唯讀' %}style="display: none;"{% endif %}>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input receipt-checkbox" 
+                                           value="{{ record.請購單號 }}"
+                                           {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm receipt-status" 
+                                            data-purchase-no="{{ record.請購單號 }}"
+                                            {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                        <option value="待驗收" {% if not record.驗收狀態 or record.驗收狀態 == '待驗收' %}selected{% endif %}>待驗收</option>
+                                        <option value="已驗收" {% if record.驗收狀態 == '已驗收' %}selected{% endif %}>已驗收</option>
+                                        <option value="驗收異常" {% if record.驗收狀態 == '驗收異常' %}selected{% endif %}>驗收異常</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <select class="form-select form-select-sm approval-status" 
+                                                data-purchase-no="{{ record.請購單號 }}" 
+                                                title="主管簽核狀態"
+                                                {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                            <option value="">待簽核</option>
+                                            <option value="核准" {% if record.驗收單簽核狀態 == '核准' %}selected{% endif %}>核准</option>
+                                            <option value="駁回" {% if record.驗收單簽核狀態 == '駁回' %}selected{% endif %}>駁回</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                onclick="quickApproval('{{ record.請購單號 }}')" 
+                                                title="快速簽核（需先完成驗收作業）"
+                                                {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                            <i class="fas fa-stamp"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <input type="text" class="form-control form-control-sm approval-note" 
+                                               data-purchase-no="{{ record.請購單號 }}"
+                                               value="{{ record.驗收簽核備註 or '' }}"
+                                               placeholder="驗收單驗簽核備註"
+                                               title="驗收單驗簽核備註"
+                                               {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                        <button type="button" class="btn btn-success btn-sm" 
+                                                onclick="saveRowApproval('{{ record.請購單號 }}')" 
+                                                title="儲存簽核（需先完成驗收作業）"
+                                                {% if record.編輯狀態 == '唯讀' %}disabled{% endif %}>
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td colspan="6" class="text-center" style="background-color: #f8f9fa;">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary" 
+                                                onclick="viewDetails('{{ record.請購單號 }}')" 
+                                                title="查看詳情">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="createReceipt('{{ record.請購單號 }}')" 
+                                                title="建立驗收單">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 批量操作 -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-tasks me-2"></i>批量操作
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-success" onclick="batchUpdateStatus('已驗收')">
+                                        <i class="fas fa-check me-2"></i>批量標記已驗收
+                                    </button>
+                                    <button type="button" class="btn btn-danger" onclick="batchUpdateStatus('驗收異常')">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>批量標記異常
+                                    </button>
+                                    <button type="button" class="btn btn-info" onclick="exportSelectedReceipts()">
+                                        <i class="fas fa-file-export me-2"></i>匯出選中項目
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-secondary">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-eye me-2"></i>顯示設定
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="showCompletedToggle" onchange="toggleCompletedItems()">
+                                    <label class="form-check-label" for="showCompletedToggle">
+                                        顯示已完成的請購單（已驗收且已簽核）
+                                    </label>
+                                </div>
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="showPasswordModalForReenable()">
+                                        <i class="fas fa-unlock me-2"></i>重新啟用編輯功能
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    已完成的請購單會自動隱藏並鎖定為唯讀，需要管理員密碼才能重新啟用編輯
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chart-pie me-2"></i>驗收統計
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <h5 class="text-warning fw-bold" id="pendingCount">0</h5>
+                                        <small class="text-muted">待驗收</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h5 class="text-success fw-bold" id="completedCount">0</h5>
+                                        <small class="text-muted">已驗收</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h5 class="text-danger fw-bold" id="errorCount">0</h5>
+                                        <small class="text-muted">驗收異常</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% else %}
+                <!-- 空狀態 -->
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">目前沒有已核准的請購單</h5>
+                    <p class="text-muted">請先核准一些請購單，然後再進行驗收作業</p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>返回主選單
+                    </a>
+                    {% if approved_records %}
+                    <button type="button" class="btn btn-primary btn-lg ms-2" onclick="printReceiptList()">
+                        <i class="fas fa-print me-2"></i>列印驗收清單
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg ms-2" onclick="exportAllReceipts()">
+                        <i class="fas fa-file-excel me-2"></i>匯出全部
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速簽核模態框 -->
+<div class="modal fade" id="quickApprovalModal" tabindex="-1" aria-labelledby="quickApprovalModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                                        <h5 class="modal-title" id="quickApprovalModalLabel">
+                            快速主管簽核
+                            <small class="text-muted ms-2">（需先完成驗收作業）</small>
+                        </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">請購單號</label>
+                    <input type="text" class="form-control" id="quickApprovalPurchaseNo" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">簽核狀態 <span class="text-danger">*</span></label>
+                    <select class="form-select" id="quickApprovalStatus">
+                        <option value="">請選擇簽核狀態</option>
+                        <option value="核准">核准</option>
+                        <option value="駁回">駁回</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">簽核日期</label>
+                    <input type="date" class="form-control" id="quickApprovalDate">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">簽核人員</label>
+                    <input type="text" class="form-control" id="quickApprover" value="{{ current_user_name }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">驗收單驗簽核備註</label>
+                    <textarea class="form-control" id="quickApprovalNote" rows="3" placeholder="請輸入驗收單驗簽核備註"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuickApproval()">確認簽核</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 驗收單詳情模態框 -->
+<div class="modal fade" id="receiptDetailModal" tabindex="-1" aria-labelledby="receiptDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptDetailModalLabel">驗收單詳情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="receiptDetailContent">
+                <!-- 動態載入內容 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-info" onclick="printReceipt()">
+                    <i class="fas fa-print me-2"></i>列印驗收單
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveReceiptDetails()">儲存變更</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 密碼驗證模態框 -->
+<div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="passwordModalLabel">
+                    <i class="fas fa-lock me-2"></i>管理員密碼驗證
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    此記錄已被鎖定為唯讀狀態，需要輸入管理員密碼才能重新啟用編輯功能。
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">請購單號</label>
+                    <input type="text" class="form-control" id="passwordModalPurchaseNo" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">管理員密碼 <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="adminPassword" 
+                           placeholder="請輸入 admin 密碼" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="showPassword">
+                        <label class="form-check-label" for="showPassword">
+                            顯示密碼
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="verifyAdminPassword()">
+                    <i class="fas fa-check me-2"></i>驗證密碼
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 搜尋和篩選功能
+function filterTable() {
+    const purchaseNoSearch = document.getElementById('purchaseNoSearch').value.toLowerCase();
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const applicantFilter = document.getElementById('applicantFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const purchaseNo = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        const department = row.querySelector('td:nth-child(4) .badge').textContent;
+        const applicant = row.querySelector('td:nth-child(5)').textContent;
+        const status = row.querySelector('td:nth-child(11) select').value;
+        
+        // 檢查是否符合所有篩選條件
+        const matchesPurchaseNo = purchaseNo.includes(purchaseNoSearch);
+        const matchesDepartment = !departmentFilter || department === departmentFilter;
+        const matchesApplicant = !applicantFilter || applicant === applicantFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        if (matchesPurchaseNo && matchesDepartment && matchesApplicant && matchesStatus) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // 更新顯示結果數量
+    document.getElementById('filteredCount').textContent = visibleCount;
+    
+    // 顯示或隱藏無結果提示
+    const noResultsMessage = document.getElementById('noResultsMessage');
+    const table = document.getElementById('receiptTable');
+    
+    if (visibleCount === 0) {
+        noResultsMessage.style.display = 'block';
+        table.style.display = 'none';
+    } else {
+        noResultsMessage.style.display = 'none';
+        table.style.display = 'table';
+    }
+    
+    // 更新統計數據
+    updateStatistics();
+}
+
+// 清除所有篩選條件
+function clearFilters() {
+    document.getElementById('purchaseNoSearch').value = '';
+    document.getElementById('departmentFilter').value = '';
+    document.getElementById('applicantFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterTable();
+}
+
+// 隱藏已完成的請購單
+function hideCompletedItems() {
+    const tableRows = document.querySelectorAll('tbody tr');
+    
+    tableRows.forEach(row => {
+        const purchaseNo = row.getAttribute('data-purchase-no');
+        if (purchaseNo) {
+            // 找到該請購單的所有行
+            const purchaseRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+            if (purchaseRows.length >= 2) {
+                const actionRow = purchaseRows[1]; // 第二行：功能操作
+                const receiptStatusElement = actionRow.querySelector('.receipt-status');
+                const approvalStatusElement = actionRow.querySelector('.approval-status');
+                
+                if (receiptStatusElement && approvalStatusElement) {
+                    const receiptStatus = receiptStatusElement.value;
+                    const approvalStatus = approvalStatusElement.value;
+                    
+                    // 檢查是否為已完成的請購單（已驗收且已簽核）
+                    const isCompleted = receiptStatus === '已驗收' && approvalStatus !== '待簽核';
+                    
+                    if (isCompleted) {
+                        purchaseRows.forEach(purchaseRow => {
+                            purchaseRow.style.display = 'none';
+                        });
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 切換顯示已完成的請購單
+function toggleCompletedItems() {
+    const showCompleted = document.getElementById('showCompletedToggle').checked;
+    const tableRows = document.querySelectorAll('tbody tr');
+    
+    tableRows.forEach(row => {
+        const purchaseNo = row.getAttribute('data-purchase-no');
+        if (purchaseNo) {
+            // 找到該請購單的所有行
+            const purchaseRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+            if (purchaseRows.length >= 2) {
+                const actionRow = purchaseRows[1]; // 第二行：功能操作
+                const receiptStatusElement = actionRow.querySelector('.receipt-status');
+                const approvalStatusElement = actionRow.querySelector('.approval-status');
+                
+                if (receiptStatusElement && approvalStatusElement) {
+                    const receiptStatus = receiptStatusElement.value;
+                    const approvalStatus = approvalStatusElement.value;
+                    
+                    // 檢查是否為已完成的請購單（已驗收且已簽核）
+                    const isCompleted = receiptStatus === '已驗收' && approvalStatus !== '待簽核';
+                    
+                    if (isCompleted) {
+                        purchaseRows.forEach(purchaseRow => {
+                            purchaseRow.style.display = showCompleted ? '' : 'none';
+                        });
+                    }
+                }
+            }
+        }
+    });
+    
+    // 更新統計數據
+    updateStatistics();
+}
+
+// 更新統計數據
+function updateStatistics() {
+    const statuses = document.querySelectorAll('.receipt-status');
+    let pending = 0, completed = 0, error = 0;
+    
+    statuses.forEach(status => {
+        // 只統計可見的項目
+        const row = status.closest('tr');
+        if (row.style.display !== 'none') {
+            switch(status.value) {
+                case '待驗收': pending++; break;
+                case '已驗收': completed++; break;
+                case '驗收異常': error++; break;
+            }
+        }
+    });
+    
+    // 安全地更新統計元素
+    const pendingElement = document.getElementById('pendingCount');
+    const completedElement = document.getElementById('completedCount');
+    const errorElement = document.getElementById('errorCount');
+    
+    if (pendingElement) pendingElement.textContent = pending;
+    if (completedElement) completedElement.textContent = completed;
+    if (errorElement) errorElement.textContent = error;
+}
+
+// 查看詳情
+function viewDetails(purchaseNo) {
+    // 從表格中取得實際資料
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    if (!tableRows || tableRows.length === 0) {
+        alert('找不到請購單資料');
+        return;
+    }
+    
+    // 找到第一行（基本資訊行）
+    const infoRow = tableRows[0];
+    // 找到第二行（功能操作行）
+    const actionRow = tableRows[1];
+    
+    if (!infoRow || !actionRow) {
+        alert('找不到請購單完整資料');
+        return;
+    }
+    
+    // 取得當前登入者姓名
+    const currentUserName = '{{ current_user_name }}' || '{{ session.username }}' || '';
+    
+    const infoCells = infoRow.querySelectorAll('td');
+    const actionCells = actionRow.querySelectorAll('td');
+    
+    const purchaseNoText = infoCells[1].textContent.trim();
+    const createDate = infoCells[2].textContent.trim();
+    const department = infoCells[3].querySelector('.badge').textContent.trim();
+    const applicant = infoCells[4].textContent.trim();
+    const itemName = infoCells[5].textContent.trim();
+    const spec = infoCells[6].textContent.trim();
+    const quantity = infoCells[7].querySelector('.badge').textContent.trim();
+    const unit = infoCells[8].textContent.trim();
+    const needDate = infoCells[9].textContent.trim();
+    
+    // 從第二行取得驗收狀態
+    const receiptStatusElement = actionRow.querySelector('.receipt-status');
+    const receiptStatus = receiptStatusElement ? receiptStatusElement.value : '待驗收';
+    
+    document.getElementById('receiptDetailModalLabel').textContent = `驗收單詳情 - ${purchaseNo}`;
+    
+    // 使用實際資料填充模態框
+    document.getElementById('receiptDetailContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>請購單資訊</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">請購單號：</td>
+                                <td>${purchaseNoText}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">建立日期：</td>
+                                <td>${createDate}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">請購部門：</td>
+                                <td><span class="badge bg-outline-secondary">${department}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">申請人：</td>
+                                <td>${applicant}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">品名：</td>
+                                <td>${itemName}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">規格：</td>
+                                <td>${spec || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">數量：</td>
+                                <td><span class="badge bg-info">${quantity}</span> ${unit}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">需求日期：</td>
+                                <td>${needDate}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>驗收資訊</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">驗收單驗收狀態</label>
+                            <select class="form-select" id="modalReceiptStatus" data-purchase-no="${purchaseNo}">
+                                <option value="待驗收" ${receiptStatus === '待驗收' ? 'selected' : ''}>待驗收</option>
+                                <option value="已驗收" ${receiptStatus === '已驗收' ? 'selected' : ''}>已驗收</option>
+                                <option value="驗收異常" ${receiptStatus === '驗收異常' ? 'selected' : ''}>驗收異常</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">驗收日期</label>
+                            <input type="date" class="form-control" id="modalReceiptDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">驗收人員</label>
+                            <input type="text" class="form-control" id="modalReceiptPerson" placeholder="請輸入驗收人員" value="${currentUserName}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">備註</label>
+                            <textarea class="form-control" id="modalReceiptNote" rows="3" placeholder="請輸入驗收備註"></textarea>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-primary">
+                                <i class="fas fa-shield-alt me-2"></i>主管簽核
+                                <small class="text-muted ms-2">（需先完成驗收作業）</small>
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">簽核狀態</label>
+                            <select class="form-select" id="modalApprovalStatus" data-purchase-no="${purchaseNo}">
+                                <option value="">請選擇簽核狀態</option>
+                                <option value="核准">核准</option>
+                                <option value="駁回">駁回</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">簽核日期</label>
+                            <input type="date" class="form-control" id="modalApprovalDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">簽核人員</label>
+                            <input type="text" class="form-control" id="modalApprover" placeholder="請輸入簽核人員" value="${currentUserName}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">驗收單驗簽核備註</label>
+                            <textarea class="form-control" id="modalApprovalNote" rows="2" placeholder="請輸入驗收單驗簽核備註"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('receiptDetailModal'));
+    modal.show();
+}
+
+// 建立驗收單
+function createReceipt(purchaseNo) {
+    alert(`建立驗收單功能 - 請購單號: ${purchaseNo}`);
+    // 這裡可以實現建立驗收單的邏輯
+}
+
+// 批量更新狀態
+function batchUpdateStatus(status) {
+    const selectedCheckboxes = document.querySelectorAll('.receipt-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('請先選擇要更新的項目');
+        return;
+    }
+    
+    if (confirm(`確定要將選中的 ${selectedCheckboxes.length} 個項目標記為「${status}」嗎？`)) {
+        let updateCount = 0;
+        const totalCount = selectedCheckboxes.length;
+        
+        selectedCheckboxes.forEach(checkbox => {
+            const purchaseNo = checkbox.value;
+            const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+            
+            // 找到包含驗收狀態的行（第二行）
+            let targetRow = null;
+            for (let row of tableRows) {
+                if (row.querySelector('.receipt-status')) {
+                    targetRow = row;
+                    break;
+                }
+            }
+            
+            if (targetRow) {
+                const statusSelect = targetRow.querySelector('.receipt-status');
+                if (statusSelect) {
+                    statusSelect.value = status;
+                    // 發送AJAX請求來更新後端資料
+                    updateReceiptStatus(purchaseNo, status);
+                    updateCount++;
+                }
+            }
+        });
+        
+        updateStatistics();
+        
+        // 顯示批量更新完成訊息
+        setTimeout(() => {
+            showToast(`批量更新完成：${updateCount}/${totalCount} 個項目已更新`, 'success');
+        }, 500);
+    }
+}
+
+// 匯出選中項目 (XLSX格式)
+function exportSelectedReceipts() {
+    const selectedCheckboxes = document.querySelectorAll('.receipt-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('請先選擇要匯出的項目');
+        return;
+    }
+    
+    // 建立工作表資料
+    const wsData = [
+        ['驗收清單 - 選中項目'],
+        [''],
+        ['請購單號', '請購日期', '請購部門', '申請人', '品名', '規格', '數量', '單位', '需求日期', '驗收單驗收狀態', '驗收單簽核狀態', '驗收單驗簽核備註']
+    ];
+    
+    selectedCheckboxes.forEach(checkbox => {
+        const purchaseNo = checkbox.value;
+        const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+        
+        if (tableRows.length >= 2) {
+            const infoRow = tableRows[0];  // 第一行：基本資訊
+            const actionRow = tableRows[1]; // 第二行：功能操作
+            
+            const infoCells = infoRow.querySelectorAll('td');
+            const actionCells = actionRow.querySelectorAll('td');
+            
+            const data = [
+                infoCells[1].textContent.trim(),
+                infoCells[2].textContent.trim(),
+                infoCells[3].textContent.trim(),
+                infoCells[4].textContent.trim(),
+                infoCells[5].textContent.trim(),
+                infoCells[6].textContent.trim(),
+                infoCells[7].textContent.trim(),
+                infoCells[8].textContent.trim(),
+                infoCells[9].textContent.trim(),
+                actionRow.querySelector('.receipt-status').value,
+                actionRow.querySelector('.approval-status').value || '待簽核',
+                actionRow.querySelector('.approval-note').value || ''
+            ];
+            
+            wsData.push(data);
+        }
+    });
+    
+    // 建立工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // 設定欄寬
+    ws['!cols'] = [
+        { wch: 15 }, // 請購單號
+        { wch: 12 }, // 請購日期
+        { wch: 12 }, // 請購部門
+        { wch: 10 }, // 申請人
+        { wch: 20 }, // 品名
+        { wch: 15 }, // 規格
+        { wch: 8 },  // 數量
+        { wch: 8 },  // 單位
+        { wch: 12 }, // 需求日期
+        { wch: 10 }, // 驗收單驗收狀態
+        { wch: 10 }, // 驗收單簽核狀態
+        { wch: 20 }  // 驗收單驗簽核備註
+    ];
+    
+    // 設定標題列樣式
+    const titleRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let col = titleRange.s.c; col <= titleRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 2, c: col });
+        if (ws[cellAddress]) {
+            ws[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4472C4" } },
+                alignment: { horizontal: "center" }
+            };
+        }
+    }
+    
+    // 設定標題樣式
+    if (ws['A1']) {
+        ws['A1'].s = {
+            font: { bold: true, size: 16 },
+            alignment: { horizontal: "center" }
+        };
+    }
+    
+    // 合併標題儲存格
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }
+    ];
+    
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '驗收清單');
+    
+    // 儲存檔案
+    const fileName = `驗收清單_選中項目_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
+
+// 列印驗收清單
+function printReceiptList() {
+    window.print();
+}
+
+// 匯出全部 (XLSX格式)
+function exportAllReceipts() {
+    // 建立工作表資料
+    const wsData = [
+        ['驗收清單 - 篩選結果'],
+        [''],
+        ['請購單號', '請購日期', '請購部門', '申請人', '品名', '規格', '數量', '單位', '需求日期', '驗收單驗收狀態', '主管簽核', '驗收單驗簽核備註']
+    ];
+    
+    const tableRows = document.querySelectorAll('tbody tr');
+    const processedPurchaseNos = new Set(); // 避免重複處理同一請購單
+    
+    tableRows.forEach(row => {
+        const purchaseNo = row.getAttribute('data-purchase-no');
+        if (purchaseNo && !processedPurchaseNos.has(purchaseNo) && row.style.display !== 'none') {
+            processedPurchaseNos.add(purchaseNo);
+            
+            // 找到該請購單的所有行
+            const purchaseRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+            if (purchaseRows.length >= 2) {
+                const infoRow = purchaseRows[0];  // 第一行：基本資訊
+                const actionRow = purchaseRows[1]; // 第二行：功能操作
+                
+                const infoCells = infoRow.querySelectorAll('td');
+                
+                const data = [
+                    infoCells[1].textContent.trim(),
+                    infoCells[2].textContent.trim(),
+                    infoCells[3].textContent.trim(),
+                    infoCells[4].textContent.trim(),
+                    infoCells[5].textContent.trim(),
+                    infoCells[6].textContent.trim(),
+                    infoCells[7].textContent.trim(),
+                    infoCells[8].textContent.trim(),
+                    infoCells[9].textContent.trim(),
+                    actionRow.querySelector('.receipt-status').value,
+                    actionRow.querySelector('.approval-status').value || '待簽核',
+                    actionRow.querySelector('.approval-note').value || ''
+                ];
+                
+                wsData.push(data);
+            }
+        }
+    });
+    
+    // 建立工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // 設定欄寬
+    ws['!cols'] = [
+        { wch: 15 }, // 請購單號
+        { wch: 12 }, // 請購日期
+        { wch: 12 }, // 請購部門
+        { wch: 10 }, // 申請人
+        { wch: 20 }, // 品名
+        { wch: 15 }, // 規格
+        { wch: 8 },  // 數量
+        { wch: 8 },  // 單位
+        { wch: 12 }, // 需求日期
+        { wch: 10 }, // 驗收單驗收狀態
+        { wch: 10 }, // 主管簽核
+        { wch: 20 }  // 驗收單驗簽核備註
+    ];
+    
+    // 設定標題列樣式
+    const titleRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let col = titleRange.s.c; col <= titleRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 2, c: col });
+        if (ws[cellAddress]) {
+            ws[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4472C4" } },
+                alignment: { horizontal: "center" }
+            };
+        }
+    }
+    
+    // 設定標題樣式
+    if (ws['A1']) {
+        ws['A1'].s = {
+            font: { bold: true, size: 16 },
+            alignment: { horizontal: "center" }
+        };
+    }
+    
+    // 合併標題儲存格
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }
+    ];
+    
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '驗收清單');
+    
+    // 儲存檔案
+    const fileName = `驗收清單_全部_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
+
+// 列印驗收單
+function printReceipt() {
+    const purchaseNo = document.getElementById('modalReceiptStatus').dataset.purchaseNo;
+    const receiptStatus = document.getElementById('modalReceiptStatus').value;
+    const receiptDate = document.getElementById('modalReceiptDate').value;
+    const receiptPerson = document.getElementById('modalReceiptPerson').value;
+    const receiptNote = document.getElementById('modalReceiptNote').value;
+    
+    // 主管簽核資料
+    const approvalStatus = document.getElementById('modalApprovalStatus').value;
+    const approvalDate = document.getElementById('modalApprovalDate').value;
+    const approver = document.getElementById('modalApprover').value;
+    const approvalNote = document.getElementById('modalApprovalNote').value;
+    
+    // 取得請購單資料
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    if (!tableRows || tableRows.length === 0) {
+        alert('找不到請購單資料');
+        return;
+    }
+    
+    const infoRow = tableRows[0];  // 第一行：基本資訊
+    const infoCells = infoRow.querySelectorAll('td');
+    const purchaseNoText = infoCells[1].textContent.trim();
+    const createDate = infoCells[2].textContent.trim();
+    const department = infoCells[3].querySelector('.badge').textContent.trim();
+    const applicant = infoCells[4].textContent.trim();
+    const itemName = infoCells[5].textContent.trim();
+    const spec = infoCells[6].textContent.trim();
+    const quantity = infoCells[7].querySelector('.badge').textContent.trim();
+    const unit = infoCells[8].textContent.trim();
+    const needDate = infoCells[9].textContent.trim();
+    
+    // 格式化日期
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const formattedReceiptDate = receiptDate ? new Date(receiptDate).toISOString().split('T')[0].replace(/-/g, '') : today;
+    
+    // 開啟新視窗進行列印
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>驗收單 - ${purchaseNoText}</title>
+            <meta charset="utf-8">
+            <style>
+                @page {
+                    size: A5;
+                    margin: 10mm;
+                }
+                body {
+                    font-family: "Microsoft JhengHei", Arial, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    margin: 0;
+                    padding: 15px;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 15px;
+                }
+                .title {
+                    font-size: 20px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                }
+                .subtitle {
+                    font-size: 14px;
+                    color: #666;
+                }
+                .info-section {
+                    margin-bottom: 18px;
+                }
+                .info-title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    margin-bottom: 12px;
+                    color: #333;
+                    border-left: 4px solid #007bff;
+                    padding-left: 8px;
+                }
+                .info-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                    margin-bottom: 15px;
+                }
+                .info-item {
+                    display: flex;
+                    align-items: center;
+                }
+                .info-label {
+                    font-weight: bold;
+                    min-width: 100px;
+                    color: #555;
+                }
+                .info-value {
+                    flex: 1;
+                    padding: 5px 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    background-color: #f9f9f9;
+                }
+                .receipt-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
+                .receipt-table th,
+                .receipt-table td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }
+                .receipt-table th {
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                .receipt-table td {
+                    background-color: #fff;
+                }
+                .signature-section {
+                    margin-top: 25px;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 20px;
+                }
+                .signature-box {
+                    text-align: center;
+                    padding: 15px;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                }
+                .signature-line {
+                    border-top: 1px solid #333;
+                    margin-top: 35px;
+                    padding-top: 8px;
+                }
+                .signature-title {
+                    font-weight: bold;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                }
+                .signature-name {
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                }
+                .signature-date {
+                    font-size: 10px;
+                    color: #666;
+                }
+                .status-badge {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                .status-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+                .status-processing { background-color: #cce5ff; color: #004085; border: 1px solid #b3d7ff; }
+                .status-completed { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+                .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+                .footer {
+                    margin-top: 25px;
+                    text-align: center;
+                    font-size: 10px;
+                    color: #666;
+                    border-top: 1px solid #eee;
+                    padding-top: 15px;
+                }
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="title">驗收單</div>
+                <div class="subtitle">Receipt Form</div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">請購單資訊</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">請購單號：</span>
+                        <span class="info-value">${purchaseNoText}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">建立日期：</span>
+                        <span class="info-value">${createDate}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">請購部門：</span>
+                        <span class="info-value">${department}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">申請人：</span>
+                        <span class="info-value">${applicant}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">採購項目</div>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>品名</th>
+                            <th>規格</th>
+                            <th>數量</th>
+                            <th>單位</th>
+                            <th>需求日期</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>${itemName}</td>
+                            <td>${spec || '-'}</td>
+                            <td style="text-align: center;">${quantity}</td>
+                            <td style="text-align: center;">${unit}</td>
+                            <td>${needDate}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">驗收資訊</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">驗收單驗收狀態：</span>
+                        <span class="info-value">
+                            <span class="status-badge status-${getStatusClass(receiptStatus)}">${receiptStatus}</span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">驗收日期：</span>
+                        <span class="info-value">${formattedReceiptDate}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">驗收人員：</span>
+                        <span class="info-value">${receiptPerson || '未指定'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">備註：</span>
+                        <span class="info-value">${receiptNote || '無'}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="signature-section">
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">申請人簽名</div>
+                    <div class="signature-name">${applicant}</div>
+                    <div class="signature-date">${createDate}</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">驗收人員簽名</div>
+                    <div class="signature-name">${receiptPerson || '待簽名'}</div>
+                    <div class="signature-date">${formattedReceiptDate}</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">主管簽核</div>
+                    <div class="signature-name">${approver || '待簽名'}</div>
+                    <div class="signature-date">${approvalDate ? new Date(approvalDate).toISOString().split('T')[0].replace(/-/g, '') : '待簽名'}</div>
+                </div>
+            </div>
+            
+            ${approvalStatus ? `
+            <div class="info-section">
+                <div class="info-title">主管簽核資訊</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">簽核狀態：</span>
+                        <span class="info-value">
+                            <span class="status-badge status-${approvalStatus === '核准' ? 'completed' : 'error'}">${approvalStatus}</span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">簽核日期：</span>
+                        <span class="info-value">${approvalDate ? new Date(approvalDate).toISOString().split('T')[0].replace(/-/g, '') : '-'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">簽核人員：</span>
+                        <span class="info-value">${approver || '-'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">簽核備註：</span>
+                        <span class="info-value">${approvalNote || '無'}</span>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
+            <div class="footer">
+                <p>本驗收單由系統自動產生，列印時間：${new Date().toLocaleString('zh-TW')}</p>
+                <p>請妥善保管此驗收單作為驗收憑證</p>
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // 等待頁面載入完成後列印
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+}
+
+// 取得狀態樣式類別
+function getStatusClass(status) {
+    switch(status) {
+        case '待驗收': return 'pending';
+        case '已驗收': return 'completed';
+        case '驗收異常': return 'error';
+        default: return 'pending';
+    }
+}
+
+// 儲存驗收單詳情
+function saveReceiptDetails() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('receiptDetailModal'));
+    const purchaseNo = document.getElementById('modalReceiptStatus').dataset.purchaseNo;
+    const newStatus = document.getElementById('modalReceiptStatus').value;
+    const receiptDate = document.getElementById('modalReceiptDate').value;
+    const receiptPerson = document.getElementById('modalReceiptPerson').value;
+    const receiptNote = document.getElementById('modalReceiptNote').value;
+    
+    // 主管簽核資料
+    const approvalStatus = document.getElementById('modalApprovalStatus').value;
+    const approvalDate = document.getElementById('modalApprovalDate').value;
+    const approver = document.getElementById('modalApprover').value;
+    const approvalNote = document.getElementById('modalApprovalNote').value;
+    
+    // 驗收單檢核機制：如果有主管簽核資料，檢查驗收單驗收狀態
+    if (approvalStatus && newStatus === '待驗收') {
+        alert('驗收單檢核失敗：驗收單驗收狀態仍為「待驗收」，請先完成驗收作業後再進行主管簽核');
+        return;
+    }
+    
+                // 更新表格中的驗收單驗收狀態
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    let targetRow = null;
+    for (let row of tableRows) {
+        if (row.querySelector('.receipt-status')) {
+            targetRow = row;
+            break;
+        }
+    }
+    
+    if (targetRow) {
+        const statusSelect = targetRow.querySelector('.receipt-status');
+        if (statusSelect) {
+            statusSelect.value = newStatus;
+        }
+    }
+    
+    // 儲存驗收詳情
+    console.log('儲存驗收詳情:', {
+        purchaseNo,
+        newStatus,
+        receiptDate,
+        receiptPerson,
+        receiptNote
+    });
+    
+    // 如果有主管簽核資料，則儲存簽核資訊
+    if (approvalStatus) {
+        saveApprovalData(purchaseNo, approvalStatus, approvalDate, approver, approvalNote);
+    }
+    
+    // 檢查是否需要隱藏該筆資料並鎖定為唯讀
+    // 條件：驗收狀態 = 已驗收 且 主管簽核 ≠ 待簽核
+    if (newStatus === '已驗收' && approvalStatus && approvalStatus !== '待簽核') {
+        // 先鎖定記錄為唯讀狀態
+        lockRecord(purchaseNo);
+        
+        // 找到該請購單的所有行並隱藏
+        const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+        tableRows.forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        // 顯示隱藏成功訊息
+        showToast(`請購單 ${purchaseNo} 已完成驗收和簽核，已從清單中隱藏並鎖定為唯讀`, 'success');
+    }
+    
+    // 更新統計數據
+    updateStatistics();
+    
+    // 顯示成功訊息
+    alert('驗收單詳情已儲存');
+    modal.hide();
+}
+
+// 快速簽核功能
+function quickApproval(purchaseNo) {
+    // 檢查必要的 DOM 元素
+    const purchaseNoElement = document.getElementById('quickApprovalPurchaseNo');
+    const dateElement = document.getElementById('quickApprovalDate');
+    const statusElement = document.getElementById('quickApprovalStatus');
+    const noteElement = document.getElementById('quickApprovalNote');
+    const modalElement = document.getElementById('quickApprovalModal');
+    
+    if (!purchaseNoElement || !dateElement || !statusElement || !noteElement || !modalElement) {
+        console.error('找不到快速簽核模態框的必要元素');
+        alert('系統錯誤：找不到快速簽核模態框');
+        return;
+    }
+    
+    // 設定請購單號
+    purchaseNoElement.value = purchaseNo;
+    
+    // 設定預設日期為今天（HTML date input 需要 YYYY-MM-DD 格式）
+    const today = new Date().toISOString().split('T')[0];
+    dateElement.value = today;
+    
+    // 清空其他欄位
+    statusElement.value = '';
+    noteElement.value = '';
+    
+    // 顯示模態框
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+}
+
+// 儲存快速簽核資料
+function saveQuickApproval() {
+    // 檢查必要的 DOM 元素
+    const purchaseNoElement = document.getElementById('quickApprovalPurchaseNo');
+    const approvalStatusElement = document.getElementById('quickApprovalStatus');
+    const approvalDateElement = document.getElementById('quickApprovalDate');
+    const approverElement = document.getElementById('quickApprover');
+    const approvalNoteElement = document.getElementById('quickApprovalNote');
+    
+    if (!purchaseNoElement || !approvalStatusElement || !approvalDateElement || !approverElement || !approvalNoteElement) {
+        console.error('找不到快速簽核模態框的必要元素');
+        alert('系統錯誤：找不到快速簽核模態框');
+        return;
+    }
+    
+    const purchaseNo = purchaseNoElement.value;
+    const approvalStatus = approvalStatusElement.value;
+    const approvalDate = approvalDateElement.value;
+    const approver = approverElement.value;
+    const approvalNote = approvalNoteElement.value;
+    
+    // 驗證必填欄位
+    if (!approvalStatus) {
+        alert('請選擇簽核狀態');
+        return;
+    }
+    
+    // 驗收單檢核機制：檢查當前驗收狀態
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    let targetRow = null;
+    for (let row of tableRows) {
+        if (row.querySelector('.receipt-status')) {
+            targetRow = row;
+            break;
+        }
+    }
+    
+    if (targetRow) {
+        const receiptStatusElement = targetRow.querySelector('.receipt-status');
+        if (receiptStatusElement) {
+            const receiptStatus = receiptStatusElement.value;
+            if (receiptStatus === '待驗收') {
+                alert('驗收單檢核失敗：驗收單驗收狀態仍為「待驗收」，請先完成驗收作業後再進行主管簽核');
+                return;
+            }
+        }
+    }
+    
+    // 處理日期格式（如果沒有提供日期，使用今天）
+    let finalApprovalDate = approvalDate;
+    if (!finalApprovalDate) {
+        finalApprovalDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    } else {
+        // 將 YYYY-MM-DD 轉換為 YYYYMMDD
+        finalApprovalDate = finalApprovalDate.replace(/-/g, '');
+    }
+    
+    // 儲存簽核資料（如果沒有提供簽核人員，會由後端自動帶入）
+    saveApprovalData(purchaseNo, approvalStatus, finalApprovalDate, approver, approvalNote, function(success) {
+        // 更新表格中的簽核狀態
+        if (targetRow) {
+            const approvalSelect = targetRow.querySelector('.approval-status');
+            if (approvalSelect) {
+                approvalSelect.value = approvalStatus;
+            }
+            
+            // 檢查是否需要隱藏該筆資料並鎖定為唯讀
+            // 條件：驗收單驗收狀態 = 已驗收 且 主管簽核 ≠ 待簽核
+            if (success) {
+                const receiptStatusElement = targetRow.querySelector('.receipt-status');
+                if (receiptStatusElement && receiptStatusElement.value === '已驗收' && approvalStatus !== '待簽核') {
+                    // 先鎖定記錄為唯讀狀態
+                    lockRecord(purchaseNo);
+                    
+                    // 找到該請購單的所有行並隱藏
+                    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+                    tableRows.forEach(row => {
+                        row.style.display = 'none';
+                    });
+                    
+                    // 更新統計數據
+                    updateStatistics();
+                    
+                    // 顯示隱藏成功訊息
+                    showToast(`請購單 ${purchaseNo} 已完成驗收和簽核，已從清單中隱藏並鎖定為唯讀`, 'success');
+                }
+            }
+        }
+    });
+    
+    // 關閉模態框
+    const modalElement = document.getElementById('quickApprovalModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
+    }
+}
+
+// 儲存單行簽核資料
+function saveRowApproval(purchaseNo) {
+    // 找到所有具有相同請購單號的行
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    if (!tableRows || tableRows.length === 0) {
+        alert('找不到請購單資料');
+        return;
+    }
+    
+    // 找到包含功能操作的行（第二行，包含 .approval-status 類別）
+    let targetRow = null;
+    for (let row of tableRows) {
+        if (row.querySelector('.approval-status')) {
+            targetRow = row;
+            break;
+        }
+    }
+    
+    if (!targetRow) {
+        alert('找不到請購單功能操作行');
+        return;
+    }
+    
+    const approvalStatusElement = targetRow.querySelector('.approval-status');
+    const approvalNoteElement = targetRow.querySelector('.approval-note');
+    const receiptStatusElement = targetRow.querySelector('.receipt-status');
+    
+    if (!approvalStatusElement || !approvalNoteElement || !receiptStatusElement) {
+        alert('找不到必要的欄位元素');
+        console.error('找不到的元素:', {
+            approvalStatus: !!approvalStatusElement,
+            approvalNote: !!approvalNoteElement,
+            receiptStatus: !!receiptStatusElement
+        });
+        return;
+    }
+    
+    const approvalStatus = approvalStatusElement.value;
+    const approvalNote = approvalNoteElement.value;
+    const receiptStatus = receiptStatusElement.value;
+    
+    // 驗證必填欄位
+    if (!approvalStatus) {
+        alert('請選擇簽核狀態');
+        return;
+    }
+    
+    // 驗收單檢核機制：只有當驗收單驗收狀態不是「待驗收」時，才能進行主管簽核
+    if (receiptStatus === '待驗收') {
+        alert('驗收單檢核失敗：驗收單驗收狀態仍為「待驗收」，請先完成驗收作業後再進行主管簽核');
+        return;
+    }
+    
+    // 設定簽核日期為今天
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    
+    // 儲存簽核資料（簽核人員和日期會由後端自動帶入）
+    console.log(`DEBUG: 準備儲存簽核資料 - 請購單號: ${purchaseNo}, 驗收單驗收狀態: ${receiptStatus}, 簽核狀態: ${approvalStatus}`);
+    
+    saveApprovalData(purchaseNo, approvalStatus, today, '', approvalNote, function(success, isReadonly) {
+        console.log(`DEBUG: 簽核資料儲存完成 - 成功: ${success}, 唯讀: ${isReadonly}`);
+        
+        // 檢查是否需要隱藏該筆資料並鎖定為唯讀
+        // 條件：驗收簽核狀態為核准或駁回（已完成驗收簽核）
+        if (success && isReadonly) {
+            console.log(`DEBUG: 符合隱藏條件，準備鎖定記錄`);
+            
+            // 找到該請購單的所有行並隱藏
+            const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+            tableRows.forEach(row => {
+                row.style.transition = 'opacity 0.5s ease-out';
+                row.style.opacity = '0';
+                
+                setTimeout(() => {
+                    row.style.display = 'none';
+                }, 500);
+            });
+            
+            // 更新統計數據
+            updateStatistics();
+            
+            // 顯示隱藏成功訊息
+            showToast(`請購單 ${purchaseNo} 已完成驗收簽核，已從清單中隱藏並鎖定為唯讀`, 'success');
+        } else {
+            console.log(`DEBUG: 不符合隱藏條件 - 成功: ${success}, 唯讀: ${isReadonly}`);
+        }
+    });
+}
+
+// 更新驗收單驗收狀態
+function updateReceiptStatus(purchaseNo, receiptStatus) {
+    const receiptData = {
+        purchase_no: purchaseNo,
+        receipt_status: receiptStatus
+    };
+    
+    fetch('/update-receipt-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(receiptData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('驗收單驗收狀態已更新:', receiptData);
+            console.log('驗收人員:', data.receipt_person);
+            console.log('驗收日期:', data.receipt_date);
+            
+            // 顯示成功訊息，包含驗收人員和日期資訊
+            const message = `驗收狀態已更新為「${receiptStatus}」\n驗收人員：${data.receipt_person}\n驗收日期：${data.receipt_date}`;
+            showToast(message, 'success');
+        } else {
+            console.error('驗收單驗收狀態更新失敗:', data.message);
+            showToast('驗收單驗收狀態更新失敗: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('驗收單驗收狀態更新錯誤:', error);
+        showToast('驗收單驗收狀態更新錯誤', 'error');
+    });
+}
+
+// 儲存主管簽核資料
+function saveApprovalData(purchaseNo, approvalStatus, approvalDate, approver, approvalNote, callback) {
+    const approvalData = {
+        purchase_no: purchaseNo,
+        approval_status: approvalStatus,
+        approval_date: approvalDate,
+        approver: approver,
+        approval_note: approvalNote
+    };
+    
+    fetch('/update-receipt-approval', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(approvalData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('主管簽核資料已儲存:', approvalData);
+            console.log('簽核人員:', data.approver);
+            console.log('簽核日期:', data.approval_date);
+            
+            // 顯示成功訊息，包含簽核人員和日期資訊
+            let message = `驗收簽核狀態已更新為「${approvalStatus}」\n簽核人員：${data.approver}\n簽核日期：${data.approval_date}`;
+            if (data.approval_note) {
+                message += `\n驗收單驗簽核備註：${data.approval_note}`;
+            }
+            showToast(message, 'success');
+            
+            // 如果有回調函數，調用它並傳遞成功狀態和唯讀狀態
+            if (callback && typeof callback === 'function') {
+                callback(true, data.is_readonly);
+            }
+        } else {
+            console.error('主管簽核資料儲存失敗:', data.message);
+            
+            // 特殊處理驗收狀態檢核失敗的情況
+            if (data.error_type === 'receipt_status_pending') {
+                showToast('驗收單檢核失敗：驗收單驗收狀態仍為「待驗收」，請先完成驗收作業後再進行主管簽核', 'warning');
+            } else {
+                showToast('主管簽核資料儲存失敗: ' + data.message, 'error');
+            }
+            
+            // 如果有回調函數，調用它並傳遞失敗狀態
+            if (callback && typeof callback === 'function') {
+                callback(false, false);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('主管簽核資料儲存錯誤:', error);
+        showToast('主管簽核資料儲存錯誤', 'error');
+        
+        // 如果有回調函數，調用它並傳遞失敗狀態
+        if (callback && typeof callback === 'function') {
+            callback(false, false);
+        }
+    });
+}
+
+// 顯示通知訊息
+function showToast(message, type = 'info') {
+    // 創建通知元素
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    
+    // 處理多行訊息
+    const formattedMessage = message.replace(/\n/g, '<br>');
+    
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            <div class="toast-message">${formattedMessage}</div>
+        </div>
+    `;
+    
+    // 添加到頁面
+    document.body.appendChild(toast);
+    
+    // 顯示動畫
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 100);
+    
+    // 自動隱藏
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 5000); // 延長顯示時間到5秒
+}
+
+// 頁面載入時初始化統計
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化時隱藏已完成的請購單
+    hideCompletedItems();
+    updateStatistics();
+    
+    // 全選/取消全選
+    const selectAllElement = document.getElementById('selectAll');
+    if (selectAllElement) {
+        selectAllElement.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.receipt-checkbox');
+            checkboxes.forEach(checkbox => {
+                // 只選中可見的項目
+                const row = checkbox.closest('tr');
+                if (row.style.display !== 'none') {
+                    checkbox.checked = this.checked;
+                }
+            });
+        });
+    }
+    
+    // 驗收狀態變更事件
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('receipt-status')) {
+            const purchaseNo = e.target.dataset.purchaseNo;
+            const newStatus = e.target.value;
+            
+            console.log(`更新請購單 ${purchaseNo} 的驗收狀態為: ${newStatus}`);
+            
+            // 發送AJAX請求來更新後端資料
+            updateReceiptStatus(purchaseNo, newStatus);
+            
+            // 更新統計
+            updateStatistics();
+        }
+        
+        // 主管簽核狀態變更事件
+        if (e.target.classList.contains('approval-status')) {
+            const purchaseNo = e.target.dataset.purchaseNo;
+            const newApprovalStatus = e.target.value;
+            
+            if (newApprovalStatus) {
+                // 如果選擇了簽核狀態，自動觸發快速簽核
+                quickApproval(purchaseNo);
+                
+                // 預設選擇狀態
+                setTimeout(() => {
+                    const quickApprovalStatusElement = document.getElementById('quickApprovalStatus');
+                    if (quickApprovalStatusElement) {
+                        quickApprovalStatusElement.value = newApprovalStatus;
+                    }
+                }, 100);
+            }
+        }
+    });
+    
+    // 表格行動畫效果
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            row.style.transition = 'all 0.5s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+    
+    // 密碼顯示切換
+    document.getElementById('showPassword').addEventListener('change', function() {
+        const passwordInput = document.getElementById('adminPassword');
+        passwordInput.type = this.checked ? 'text' : 'password';
+    });
+    
+    // 密碼輸入框 Enter 鍵事件
+    document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            verifyAdminPassword();
+        }
+    });
+});
+
+// 鎖定記錄為唯讀狀態
+function lockRecord(purchaseNo) {
+    console.log(`DEBUG: 開始鎖定記錄 - 請購單號: ${purchaseNo}`);
+    
+    fetch('/lock-record', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            purchase_no: purchaseNo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(`DEBUG: 記錄 ${purchaseNo} 已鎖定為唯讀狀態`);
+        } else {
+            console.error('DEBUG: 鎖定記錄失敗:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('DEBUG: 鎖定記錄時發生錯誤:', error);
+    });
+}
+
+// 顯示密碼驗證對話框
+function showPasswordModal(purchaseNo) {
+    document.getElementById('passwordModalPurchaseNo').value = purchaseNo;
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('showPassword').checked = false;
+    
+    const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    passwordModal.show();
+}
+
+// 驗證管理員密碼
+function verifyAdminPassword() {
+    const purchaseNo = document.getElementById('passwordModalPurchaseNo').value;
+    const password = document.getElementById('adminPassword').value;
+    
+    if (!password) {
+        showToast('請輸入管理員密碼', 'error');
+        return;
+    }
+    
+    fetch('/verify-admin-password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            purchase_no: purchaseNo,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('密碼驗證成功，已重新啟用編輯功能', 'success');
+            
+            // 關閉密碼對話框
+            const passwordModal = bootstrap.Modal.getInstance(document.getElementById('passwordModal'));
+            passwordModal.hide();
+            
+            if (purchaseNo === 'ALL') {
+                // 重新啟用所有已隱藏的請購單
+                const hiddenRows = document.querySelectorAll('tbody tr[style*="display: none"]');
+                hiddenRows.forEach(row => {
+                    row.style.display = '';
+                    const purchaseNoFromRow = row.getAttribute('data-purchase-no');
+                    if (purchaseNoFromRow) {
+                        enableEditing(purchaseNoFromRow);
+                    }
+                });
+                
+                // 重置對話框標題和說明
+                document.getElementById('passwordModalLabel').innerHTML = '<i class="fas fa-lock me-2"></i>管理員密碼驗證';
+                document.querySelector('#passwordModal .alert').innerHTML = '<i class="fas fa-info-circle me-2"></i>此記錄已被鎖定為唯讀狀態，需要輸入管理員密碼才能重新啟用編輯功能。';
+            } else {
+                // 重新顯示該筆資料
+                const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+                tableRows.forEach(row => {
+                    row.style.display = '';
+                });
+                
+                // 重新啟用編輯功能
+                enableEditing(purchaseNo);
+            }
+            
+            // 更新統計數據
+            updateStatistics();
+        } else {
+            showToast('密碼錯誤，請重新輸入', 'error');
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassword').focus();
+        }
+    })
+    .catch(error => {
+        console.error('驗證密碼時發生錯誤:', error);
+        showToast('驗證密碼時發生錯誤', 'error');
+    });
+}
+
+// 重新啟用編輯功能
+function enableEditing(purchaseNo) {
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    tableRows.forEach(row => {
+        // 重新啟用所有輸入欄位
+        const inputs = row.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.disabled = false;
+            input.classList.remove('form-control-plaintext');
+        });
+        
+        // 重新啟用按鈕
+        const buttons = row.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.disabled = false;
+        });
+    });
+}
+
+// 檢查記錄是否為唯讀狀態
+function checkRecordLockStatus(purchaseNo) {
+    // 這裡可以發送請求到後端檢查記錄的鎖定狀態
+    // 目前簡化處理，假設所有已隱藏的記錄都是唯讀的
+    const tableRows = document.querySelectorAll(`tr[data-purchase-no="${purchaseNo}"]`);
+    if (tableRows.length > 0 && tableRows[0].style.display === 'none') {
+        return true; // 已鎖定
+    }
+    return false; // 未鎖定
+}
+
+// 顯示密碼驗證對話框（用於重新啟用編輯功能）
+function showPasswordModalForReenable() {
+    // 檢查是否有已隱藏的請購單
+    const hiddenRows = document.querySelectorAll('tbody tr[style*="display: none"]');
+    if (hiddenRows.length === 0) {
+        showToast('目前沒有已鎖定的請購單', 'info');
+        return;
+    }
+    
+    // 顯示密碼驗證對話框，但不指定特定請購單號
+    document.getElementById('passwordModalPurchaseNo').value = 'ALL';
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('showPassword').checked = false;
+    
+    // 修改對話框標題和說明
+    document.getElementById('passwordModalLabel').innerHTML = '<i class="fas fa-unlock me-2"></i>重新啟用所有編輯功能';
+    document.querySelector('#passwordModal .alert').innerHTML = '<i class="fas fa-info-circle me-2"></i>將重新啟用所有已鎖定請購單的編輯功能，需要輸入管理員密碼。';
+    
+    const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    passwordModal.show();
+}
+</script>
+
+<style>
+@media print {
+    .btn, .card-header, .modal {
+        display: none !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .badge {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+        background: none !important;
+    }
+}
+
+.badge.bg-outline-secondary {
+    background-color: transparent !important;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.dropdown-submenu .dropdown-menu {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.form-select-sm {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 搜尋區域樣式 */
+.search-card {
+    transition: all 0.3s ease;
+}
+
+.search-card:hover {
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.1);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* 篩選結果計數器樣式 */
+#filteredCount {
+    color: #0d6efd;
+    font-size: 1.1em;
+}
+
+/* 搜尋輸入框動畫效果 */
+#purchaseNoSearch {
+    transition: all 0.3s ease;
+}
+
+#purchaseNoSearch:focus {
+    transform: scale(1.02);
+}
+
+/* 通知訊息樣式 */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 12px 16px;
+    min-width: 300px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    border-left: 4px solid #007bff;
+}
+
+.toast-notification.show {
+    transform: translateX(0);
+}
+
+.toast-notification.toast-success {
+    border-left-color: #28a745;
+}
+
+.toast-notification.toast-error {
+    border-left-color: #dc3545;
+}
+
+.toast-notification.toast-info {
+    border-left-color: #17a2b8;
+}
+
+.toast-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.toast-content i {
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.toast-message {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.toast-success .toast-content i {
+    color: #28a745;
+}
+
+.toast-error .toast-content i {
+    color: #dc3545;
+}
+
+.toast-info .toast-content i {
+    color: #17a2b8;
+}
+</style>
+{% endblock %} 

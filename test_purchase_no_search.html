@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>請購單號搜尋功能測試</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h2>請購單號搜尋功能測試</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <a href="http://localhost:5000/purchase-no-search" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-hashtag me-2"></i>請購單號搜尋
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="http://localhost:5000/purchase-search" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fas fa-search me-2"></i>回到搜尋選單
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h5>請購單號範圍搜尋功能特色：</h5>
+                        <ul>
+                            <li><strong>範圍搜尋：</strong>輸入開始和結束請購單號進行範圍搜尋</li>
+                            <li><strong>表格顯示：</strong>以表格形式顯示詳細的請購單資訊</li>
+                            <li><strong>完整欄位：</strong>顯示請購單號、請購日期、請購部門、申請人、品名、規格、數量、單位等</li>
+                            <li><strong>狀態標示：</strong>清楚顯示請購單簽核、驗收單驗收狀態、驗收單簽核狀態</li>
+                            <li><strong>詳細資料查看：</strong>點擊查看詳情可查看完整資訊</li>
+                            <li><strong>返回功能：</strong>可返回搜尋選單或重新搜尋</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>使用說明：</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>請購單號格式：YYYYMMDD-XXX（例如：20241201-001）</li>
+                                <li>輸入開始請購單號和結束請購單號進行範圍搜尋</li>
+                                <li>搜尋結果以表格形式顯示，包含完整的請購單資訊</li>
+                                <li>狀態欄位以不同顏色標籤顯示，方便識別</li>
+                                <li>點擊「查看詳情」可查看完整的請購單資料</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>注意：</strong>使用搜尋功能前請先登入系統
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}系統日誌{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">系統日誌</h2>
+    <form class="row mb-3" id="filterForm">
+        <div class="col-md-3">
+            <label class="form-label">姓名</label>
+            <select class="form-select" id="nameFilter">
+                <option value="">全部</option>
+                {% for name in names %}
+                <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">登入時間</label>
+            <select class="form-select" id="loginTimeFilter">
+                <option value="">全部</option>
+                {% for t in login_times %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="logTable">
+            <thead class="table-light">
+                <tr>
+                    {% for k in records[0].keys() %}
+                    <th>{{ k }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr>
+                    {% for v in row.values() %}
+                    <td>{{ v }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+const nameFilter = document.getElementById('nameFilter');
+const loginTimeFilter = document.getElementById('loginTimeFilter');
+const logTable = document.getElementById('logTable').getElementsByTagName('tbody')[0];
+const allRows = Array.from(logTable.rows);
+
+function filterTable() {
+    const name = nameFilter.value;
+    const loginTime = loginTimeFilter.value;
+    allRows.forEach(row => {
+        const nameCell = row.cells[0].textContent;
+        const loginTimeCell = row.cells[1].textContent;
+        let show = true;
+        if (name && nameCell !== name) show = false;
+        if (loginTime && loginTimeCell !== loginTime) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+}
+nameFilter.addEventListener('change', filterTable);
+loginTimeFilter.addEventListener('change', filterTable);
+</script>
+{% endblock %} 

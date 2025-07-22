@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>請購單號搜尋測試</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .result-table {
+            font-size: 0.9rem;
+        }
+        .result-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2 class="mb-4">請購單號範圍搜尋測試</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>搜尋條件</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="searchForm">
+                            <div class="mb-3">
+                                <label for="start_purchase_no" class="form-label">開始請購單號</label>
+                                <input type="text" class="form-control" id="start_purchase_no" name="start_purchase_no" placeholder="例如: 20250719-001">
+                            </div>
+                            <div class="mb-3">
+                                <label for="end_purchase_no" class="form-label">結束請購單號</label>
+                                <input type="text" class="form-control" id="end_purchase_no" name="end_purchase_no" placeholder="例如: 20250719-005">
+                            </div>
+                            <button type="submit" class="btn btn-primary">搜尋</button>
+                            <button type="button" class="btn btn-secondary" onclick="checkDebugData()">檢查調試資料</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>搜尋結果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="searchStatus" class="alert alert-info" style="display: none;">
+                            正在搜尋...
+                        </div>
+                        <div id="searchResults">
+                            <p class="text-muted">請輸入搜尋條件並點擊搜尋按鈕</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>詳細結果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="detailedResults">
+                            <p class="text-muted">搜尋結果將顯示在這裡</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('searchForm');
+            const searchStatus = document.getElementById('searchStatus');
+            const searchResults = document.getElementById('searchResults');
+            const detailedResults = document.getElementById('detailedResults');
+            
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const startPurchaseNo = document.getElementById('start_purchase_no').value.trim();
+                const endPurchaseNo = document.getElementById('end_purchase_no').value.trim();
+                
+                if (!startPurchaseNo && !endPurchaseNo) {
+                    alert('請至少輸入一個請購單號');
+                    return;
+                }
+                
+                // 顯示搜尋狀態
+                searchStatus.style.display = 'block';
+                searchStatus.className = 'alert alert-info';
+                searchStatus.textContent = '正在搜尋...';
+                
+                // 發送搜尋請求
+                fetch('/test-search-purchase-requests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_type: 'purchase_no_range',
+                        start_purchase_no: startPurchaseNo,
+                        end_purchase_no: endPurchaseNo
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('搜尋結果:', data);
+                    
+                    if (data.success) {
+                        displayResults(data.results, data.total_count);
+                        searchStatus.className = 'alert alert-success';
+                        searchStatus.textContent = `搜尋完成，找到 ${data.total_count} 筆記錄`;
+                    } else {
+                        searchStatus.className = 'alert alert-danger';
+                        searchStatus.textContent = `搜尋失敗: ${data.message}`;
+                        searchResults.innerHTML = '<p class="text-danger">搜尋失敗</p>';
+                        detailedResults.innerHTML = '<p class="text-danger">無法顯示結果</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('搜尋錯誤:', error);
+                    searchStatus.className = 'alert alert-danger';
+                    searchStatus.textContent = '搜尋時發生錯誤';
+                    searchResults.innerHTML = '<p class="text-danger">搜尋時發生錯誤</p>';
+                    detailedResults.innerHTML = '<p class="text-danger">無法顯示結果</p>';
+                });
+            });
+        });
+        
+        function displayResults(results, totalCount) {
+            const searchResults = document.getElementById('searchResults');
+            const detailedResults = document.getElementById('detailedResults');
+            
+            // 顯示簡要結果
+            searchResults.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>搜尋成功！</strong><br>
+                    找到 ${totalCount} 筆記錄
+                </div>
+            `;
+            
+            // 顯示詳細結果表格
+            if (results.length > 0) {
+                let tableHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover result-table">
+                            <thead>
+                                <tr>
+                                    <th>請購單號</th>
+                                    <th>請購日期</th>
+                                    <th>請購部門</th>
+                                    <th>申請人</th>
+                                    <th>品名</th>
+                                    <th>規格</th>
+                                    <th>數量</th>
+                                    <th>單位</th>
+                                    <th>請購單簽核</th>
+                                    <th>驗收單驗收狀態</th>
+                                    <th>驗收單簽核狀態</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                results.forEach(record => {
+                    tableHTML += `
+                        <tr>
+                            <td>${record['請購單號'] || ''}</td>
+                            <td>${record['請購日期'] ? record['請購日期'].replace(/-/g, '').replace(/\//g, '') : ''}</td>
+                            <td>${record['請購部門'] || ''}</td>
+                            <td>${record['申請人'] || ''}</td>
+                            <td>${record['品名'] || ''}</td>
+                            <td>${record['規格'] || ''}</td>
+                            <td>${record['數量'] || ''}</td>
+                            <td>${record['單位'] || ''}</td>
+                            <td>${record['簽核'] || ''}</td>
+                            <td>${record['驗收單驗收狀態'] || ''}</td>
+                            <td>${record['驗收單簽核'] || ''}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                detailedResults.innerHTML = tableHTML;
+            } else {
+                detailedResults.innerHTML = '<p class="text-muted">沒有找到符合條件的記錄</p>';
+            }
+        }
+        
+        function checkDebugData() {
+            fetch('/debug-data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('調試資料:', data);
+                    alert(`調試資料:\n總記錄數: ${data.total_records}\n樣本記錄: ${JSON.stringify(data.sample_records, null, 2)}`);
+                })
+                .catch(error => {
+                    console.error('調試資料錯誤:', error);
+                    alert('無法取得調試資料');
+                });
+        }
+    </script>
+</body>
+</html> 

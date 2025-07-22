@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XLSX 匯出測試</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>XLSX 匯出功能測試</h1>
+    
+    <button class="test-button" onclick="testXLSXExport()">測試 XLSX 匯出</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        function testXLSXExport() {
+            try {
+                // 建立測試資料
+                const wsData = [
+                    ['測試採購清單'],
+                    [''],
+                    ['品名', '規格', '數量', '單位', '請購單號', '申請部門', '需求日期']
+                ];
+                
+                // 添加一些測試資料
+                wsData.push(['筆記本', 'A4 100頁', '10', '本', '20250101-001', '研發部', '2025-01-15']);
+                wsData.push(['原子筆', '藍色 0.5mm', '50', '支', '20250101-002', '製造部', '2025-01-20']);
+                wsData.push(['便利貼', '黃色 3x3', '20', '包', '20250101-003', '行政部', '2025-01-25']);
+                
+                // 建立工作簿
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                
+                // 設定欄寬
+                ws['!cols'] = [
+                    { wch: 15 }, // 品名
+                    { wch: 15 }, // 規格
+                    { wch: 10 }, // 數量
+                    { wch: 8 },  // 單位
+                    { wch: 15 }, // 請購單號
+                    { wch: 12 }, // 申請部門
+                    { wch: 12 }  // 需求日期
+                ];
+                
+                // 設定標題列樣式
+                const titleRange = XLSX.utils.decode_range(ws['!ref']);
+                for (let col = titleRange.s.c; col <= titleRange.e.c; col++) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: 2, c: col });
+                    if (ws[cellAddress]) {
+                        ws[cellAddress].s = {
+                            font: { bold: true, color: { rgb: "FFFFFF" } },
+                            fill: { fgColor: { rgb: "4472C4" } },
+                            alignment: { horizontal: "center" }
+                        };
+                    }
+                }
+                
+                // 設定標題樣式
+                if (ws['A1']) {
+                    ws['A1'].s = {
+                        font: { bold: true, size: 16 },
+                        alignment: { horizontal: "center" }
+                    };
+                }
+                
+                // 合併標題儲存格
+                ws['!merges'] = [
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }
+                ];
+                
+                // 添加工作表到工作簿
+                XLSX.utils.book_append_sheet(wb, ws, '測試清單');
+                
+                // 儲存檔案
+                const fileName = `測試採購清單_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                document.getElementById('result').innerHTML = '<p style="color: green;">✓ XLSX 匯出成功！檔案已下載。</p>';
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">✗ XLSX 匯出失敗：' + error.message + '</p>';
+                console.error('XLSX 匯出錯誤：', error);
+            }
+        }
+    </script>
+</body>
+</html> 

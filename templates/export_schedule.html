@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}班表匯出{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">班表匯出結果</h2>
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <label for="start_date" class="form-label">開始日期</label>
+            <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+        </div>
+        <div class="col-auto">
+            <label for="end_date" class="form-label">結束日期</label>
+            <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+        </div>
+        <div class="col-auto align-self-end">
+            <button type="submit" class="btn btn-primary">查詢</button>
+        </div>
+    </form>
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{{ url_for('download_schedule', start_date=request.args.get('start_date'), end_date=request.args.get('end_date')) }}" class="btn btn-success">下載 Excel</a>
+    </div>
+    {% if schedule_data and schedule_data|length > 0 %}
+    <div style="overflow: auto; max-height: 600px; width: 100%;">
+      <table class="table table-bordered table-hover" style="min-width:1200px;">
+        <style>
+        th, td {
+            white-space: nowrap;
+            background: #fff;
+            z-index: 1;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+        </style>
+        <thead>
+          <tr>
+            {% for col in schedule_data[0] %}
+            <th>{{ col|safe }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedule_data[1:] %}
+          <tr>
+            {% for cell in row %}
+            <td {% if cell[1] %}style="color:red;font-weight:bold;"{% endif %}>{{ cell[0] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">目前尚無班表資料。</div>
+    {% endif %}
+</div>
+{% endblock %} 
